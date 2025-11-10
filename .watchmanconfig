@@ -1,1 +1,16 @@
-{}
+{
+  "ignore_dirs": [
+    ".git",
+    ".hg",
+    ".svn",
+    ".idea",
+    ".vscode",
+    ".metro-cache",
+    "macos/Pods",
+    "macos/build",
+    "vendor",
+    "tmp",
+    "temp"
+  ],
+  "root_files": [".watchmanconfig", "package.json", ".git"]
+}

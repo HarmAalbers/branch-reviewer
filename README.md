@@ -1,97 +1,167 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Branch Reviewer — macOS (React Native macOS)
 
-# Getting Started
+This repo is now macOS‑only. It uses React Native macOS 0.73 to produce a native Cocoa app for Apple Silicon (arm64) on the latest macOS.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Quickstart (run locally)
 
-## Step 1: Start Metro
+1. Install prerequisites (macOS 15+, Xcode 16 CLI tools, Node 20+, CocoaPods):
+   - Xcode: install from the App Store, then run: `xcode-select --install`
+   - Homebrew (optional): https://brew.sh
+   - With Homebrew: `brew install node watchman just` (just = task runner used by this repo)
+   - CocoaPods: `sudo gem install cocoapods`
+2. Install JS deps:
+   ```sh
+   npm install
+   ```
+3. Install CocoaPods for the macOS target:
+   ```sh
+   cd macos && pod install
+   ```
+4. Run the app in Debug:
+   - Terminal A (Metro bundler):
+     ```sh
+     npm start
+     # or: just start
+     ```
+   - Terminal B (launch the macOS app):
+     ```sh
+     npm run macos
+     # or: just macos
+     ```
+     Tip: You can also open `macos/branchReviewer.xcworkspace` in Xcode and press Run.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
-
-To start the Metro dev server, run the following command from the root of your React Native project:
+Optional: view helper tasks
 
 ```sh
-# Using npm
+just help
+```
+
+## Using just (task runner, optional)
+
+Common recipes:
+
+```sh
+just install            # npm install
+just pods               # cd macos && pod install
+just start              # start Metro bundler
+just macos              # run the macOS app
+just bundle-macos       # create macos/main.jsbundle + assets
+just build-app          # xcodebuild Release (arm64)
+just package-dmg        # create unsigned DMG from Release .app
+just test               # run Jest tests
+just lint               # run ESLint
+just typecheck          # run TypeScript
+just fmt                # Prettier format
+just clean              # remove node_modules and reinstall
+just clean-metro-cache  # clear Metro cache and Watchman state
+just watchman-reseed    # reseed Watchman for this project
+just versions           # print key tool versions
+```
+
+## Prerequisites
+
+- macOS 15 (Sequoia) on Apple Silicon
+- Xcode 16+ with command line tools
+- Node.js 20+
+- CocoaPods (`sudo gem install cocoapods`) if not already installed
+
+Install via Homebrew (optional):
+
+```sh
+brew install node watchman just
+```
+
+Verify tools:
+
+```sh
+node -v
+npm -v
+npx react-native --version || npx react-native-macos --version
+ruby -v || true
+pod --version
+```
+
+## Install
+
+```sh
+npm install
+```
+
+## First‑time macOS setup
+
+The macOS project and pods were generated already, but you can re‑install pods if needed:
+
+```sh
+cd macos && pod install
+```
+
+## Run (Debug)
+
+In one terminal (Metro must be running to avoid "No bundle URL present"):
+
+```sh
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
+In another terminal:
 
 ```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+npm run macos
 ```
 
-### iOS
+Or open `macos/branchReviewer.xcworkspace` in Xcode and press Run.
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+Note: Debug builds no longer auto-copy the pre-bundled `macos/main.jsbundle`. This prevents stale demo code from loading. If you really need to run Debug from a prebuilt bundle (offline), set the Xcode build setting environment variable `USE_PREBUNDLED_DEBUG=1` for the scheme, or export it in the environment before building. Otherwise keep Metro running.
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+Tip: If you want to run without Metro, build the app in Release. The Xcode RN build script will bundle JavaScript (main.jsbundle) into the app automatically for Release builds.
+
+## Open a local Git repository
+
+- Click the "Open Local Repo…" button in the top bar.
+- Paste a local path like `/Users/me/projects/my-repo` and press Add.
+- The app will add the repo, populate a list of local branches, auto-select the current branch, and show commits since the base branch (main/master) along with changed files and small patches.
+- Your repos and selections are remembered between launches (stored in NSUserDefaults via React Native Settings).
+- Requirements: `git` must be installed and available on your PATH (Homebrew installs it to `/opt/homebrew/bin/git`).
+- Privacy: The app shells out to the local `git` CLI only and reads repository data locally; nothing is uploaded.
+
+## Build a Release .app
+
+From Xcode: select the `branchReviewer-macOS` scheme, set configuration to Release, and Product → Build. The `.app` will be under `~/Library/Developer/Xcode/DerivedData/.../Build/Products/Release/branchReviewer.app`.
+
+From CLI:
 
 ```sh
-bundle install
+xcodebuild -workspace macos/branchReviewer.xcworkspace \
+  -scheme branchReviewer-macOS \
+  -configuration Release \
+  -arch arm64 \
+  build
 ```
 
-Then, and every time you update your native dependencies, run:
+## Create an unsigned .dmg (optional)
+
+Replace APP_PATH with your built app path:
 
 ```sh
-bundle exec pod install
+APP_PATH="$(find ~/Library/Developer/Xcode/DerivedData -name branchReviewer.app -path "*Build/Products/Release/*" -print -quit)"
+DMG=branchReviewer-unsigned.dmg
+[ -d "$APP_PATH" ] && hdiutil create -volname "Branch Reviewer" -srcfolder "$APP_PATH" -ov -format UDZO "$DMG"
+echo "Created $DMG"
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Notes:
 
-```sh
-# Using npm
-npm run ios
+- Bundle ID: `com.example.branchreviewer`
+- Minimum macOS: 15.0; Architecture: arm64 only
+- Android, iOS, and Electron targets have been removed.
 
-# OR using Yarn
-yarn ios
-```
+## Troubleshooting
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- Watchman recrawl warnings (MustScanSubDirs / UserDropped):
+  - Reason: Watchman had to rescan the tree, often due to large directories or transient FS events.
+  - Fix: Reseed the Watchman watch for this project and clear Metro cache.
+    ```sh
+    just watchman-reseed
+    just clean-metro-cache
+    ```
+  - This repo ships a .watchmanconfig that ignores heavy directories (node_modules, Pods, build, .metro-cache, etc.) to minimize recrawls. See: https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
