@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -17,15 +16,6 @@ import { scanRepo } from './src/gitLocal';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
-
-  // On macOS, StatusBar and SafeAreaProvider are not supported the same way as iOS/Android.
-  // Avoid importing react-native-safe-area-context on macOS to prevent native module errors.
-  let Wrapper: React.ComponentType<any> = React.Fragment;
-  if (Platform.OS !== 'macos') {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { SafeAreaProvider } = require('react-native-safe-area-context');
-    Wrapper = SafeAreaProvider;
-  }
 
   const [repos, setRepos] = useState<Repo[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | undefined>(
@@ -172,9 +162,8 @@ function App() {
   };
 
   return (
-    <Wrapper>
-      <View style={[styles.root, { backgroundColor: colors.windowBg }]}>
-        <Sidebar
+    <View style={[styles.root, { backgroundColor: colors.windowBg }]}>
+      <Sidebar
           repos={repos}
           selectedRepoId={selectedRepoId}
           selectedPrId={selectedPrId}
@@ -287,7 +276,6 @@ function App() {
           )}
         </View>
       </View>
-    </Wrapper>
   );
 }
 
