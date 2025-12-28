@@ -1,0 +1,14 @@
+# CODEOWNERS file for Branch Reviewer
+# This ensures all changes require approval from the repository owner
+
+# Global ownership - all files require owner review
+* @HarmAalbers
+
+# Critical configuration files require owner review
+/.github/ @HarmAalbers
+/macos/ @HarmAalbers
+/docs/adr/ @HarmAalbers
+CLAUDE.md @HarmAalbers
+CONTRIBUTING.md @HarmAalbers
+SECURITY.md @HarmAalbers
+package.json @HarmAalbers
