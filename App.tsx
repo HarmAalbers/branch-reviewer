@@ -1,31 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Platform,
-  Pressable,
+  ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
-  TextInput,
   useColorScheme,
   View,
 } from 'react-native';
 import Sidebar from './src/components/Sidebar';
 import PRDetails from './src/components/PRDetails';
 import BranchDetails from './src/components/BranchDetails';
-import type { Repo, PullRequest } from './src/types';
+import type {
+  Repo,
+  PullRequest,
+  LineComments,
+  ReviewComment,
+} from './src/types';
 import { loadState, saveState } from './src/storage';
-import { scanRepo } from './src/gitLocal';
+import { scanRepo, scanBranch, pickFolder } from './src/gitLocal';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
-
-  // On macOS, StatusBar and SafeAreaProvider are not supported the same way as iOS/Android.
-  // Avoid importing react-native-safe-area-context on macOS to prevent native module errors.
-  let Wrapper: React.ComponentType<any> = React.Fragment;
-  if (Platform.OS !== 'macos') {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { SafeAreaProvider } = require('react-native-safe-area-context');
-    Wrapper = SafeAreaProvider;
-  }
 
   const [repos, setRepos] = useState<Repo[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | undefined>(
@@ -38,13 +33,8 @@ function App() {
     string | undefined
   >(undefined);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-
-  // UI to open a local repo by entering a path
-  const [openVisible, setOpenVisible] = useState(false);
-  const [repoPathInput, setRepoPathInput] = useState('');
-  const [addRepoError, setAddRepoError] = useState<string | undefined>(
-    undefined,
-  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   const selectedRepo = useMemo(
     () => repos.find(r => r.id === selectedRepoId),
@@ -72,6 +62,161 @@ function App() {
             return { ...p, comments: [...p.comments, newComment] };
           }),
         };
+      }),
+    );
+  };
+
+  const addLineComment = (
+    filePath: string,
+    lineNumber: number,
+    body: string,
+    parentId?: string,
+  ) => {
+    if (!selectedRepoId || !selectedBranchName) return;
+
+    setRepos(prev =>
+      prev.map(r => {
+        if (r.id !== selectedRepoId) return r;
+
+        const newComment: ReviewComment = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+          body,
+          createdAt: new Date().toISOString(),
+          parentId,
+        };
+
+        const existingComments = r.reviewComments || [];
+        const existingLineComment = existingComments.find(
+          lc =>
+            lc.repoId === selectedRepoId &&
+            lc.branchName === selectedBranchName &&
+            lc.filePath === filePath &&
+            lc.lineNumber === lineNumber,
+        );
+
+        let updatedComments: LineComments[];
+        if (existingLineComment) {
+          updatedComments = existingComments.map(lc =>
+            lc === existingLineComment
+              ? { ...lc, comments: [...lc.comments, newComment] }
+              : lc,
+          );
+        } else {
+          updatedComments = [
+            ...existingComments,
+            {
+              repoId: selectedRepoId,
+              branchName: selectedBranchName,
+              filePath,
+              lineNumber,
+              comments: [newComment],
+            },
+          ];
+        }
+
+        return { ...r, reviewComments: updatedComments };
+      }),
+    );
+  };
+
+  const editLineComment = (
+    filePath: string,
+    lineNumber: number,
+    commentId: string,
+    body: string,
+  ) => {
+    if (!selectedRepoId || !selectedBranchName) return;
+
+    setRepos(prev =>
+      prev.map(r => {
+        if (r.id !== selectedRepoId) return r;
+
+        const updatedComments = (r.reviewComments || []).map(lc => {
+          if (
+            lc.repoId === selectedRepoId &&
+            lc.branchName === selectedBranchName &&
+            lc.filePath === filePath &&
+            lc.lineNumber === lineNumber
+          ) {
+            return {
+              ...lc,
+              comments: lc.comments.map(c =>
+                c.id === commentId
+                  ? { ...c, body, updatedAt: new Date().toISOString() }
+                  : c,
+              ),
+            };
+          }
+          return lc;
+        });
+
+        return { ...r, reviewComments: updatedComments };
+      }),
+    );
+  };
+
+  const deleteLineComment = (
+    filePath: string,
+    lineNumber: number,
+    commentId: string,
+  ) => {
+    if (!selectedRepoId || !selectedBranchName) return;
+
+    setRepos(prev =>
+      prev.map(r => {
+        if (r.id !== selectedRepoId) return r;
+
+        const updatedComments = (r.reviewComments || [])
+          .map(lc => {
+            if (
+              lc.repoId === selectedRepoId &&
+              lc.branchName === selectedBranchName &&
+              lc.filePath === filePath &&
+              lc.lineNumber === lineNumber
+            ) {
+              const filteredComments = lc.comments.filter(
+                c => c.id !== commentId,
+              );
+              return filteredComments.length > 0
+                ? { ...lc, comments: filteredComments }
+                : null;
+            }
+            return lc;
+          })
+          .filter((lc): lc is LineComments => lc !== null);
+
+        return { ...r, reviewComments: updatedComments };
+      }),
+    );
+  };
+
+  const toggleResolveLineComment = (filePath: string, lineNumber: number) => {
+    if (!selectedRepoId || !selectedBranchName) return;
+
+    setRepos(prev =>
+      prev.map(r => {
+        if (r.id !== selectedRepoId) return r;
+
+        const updatedComments = (r.reviewComments || []).map(lc => {
+          if (
+            lc.repoId === selectedRepoId &&
+            lc.branchName === selectedBranchName &&
+            lc.filePath === filePath &&
+            lc.lineNumber === lineNumber
+          ) {
+            const currentlyResolved = lc.comments[0]?.isResolved;
+            return {
+              ...lc,
+              comments: lc.comments.map(c => ({
+                ...c,
+                isResolved: !currentlyResolved,
+              })),
+            };
+          }
+          return lc;
+        });
+
+        return { ...r, reviewComments: updatedComments };
       }),
     );
   };
@@ -124,23 +269,42 @@ function App() {
   }, [repos, selectedRepoId, selectedPrId, selectedBranchName, collapsed]);
 
   const addLocalRepo = async () => {
-    const path = repoPathInput.trim();
-    if (!path) return;
-
-    setAddRepoError(undefined);
-    const nameSegs = path.split(/[\\/]/).filter(Boolean);
-    const name = nameSegs[nameSegs.length - 1] || path;
-
     try {
-      const scan = await scanRepo(path);
+      setLoadingMessage('Select a repository folder...');
+      const path = await pickFolder();
+
+      if (!path) {
+        setLoadingMessage('');
+        return; // User cancelled
+      }
+
+      setIsLoading(true);
+      const nameSegs = path.split(/[\\/]/).filter(Boolean);
+      const name = nameSegs[nameSegs.length - 1] || path;
+
+      setLoadingMessage(`Step 1/6: Validating git repository...`);
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 50));
+
+      const scan = await scanRepo(path, (step: string) => {
+        setLoadingMessage(step);
+      });
+
       if (
         !scan ||
         !Array.isArray(scan.branches) ||
         scan.branches.length === 0
       ) {
-        setAddRepoError('Not a valid git repository or no branches found.');
+        setIsLoading(false);
+        setLoadingMessage('');
+        Alert.alert(
+          'Invalid Repository',
+          'The selected folder is not a valid Git repository or has no branches.',
+        );
         return;
       }
+
+      setLoadingMessage(`Finalizing...`);
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
 
       const newRepo: Repo = {
         id: `local:${Date.now()}`,
@@ -152,150 +316,161 @@ function App() {
         branchCommits: scan.branchCommits,
         branchFiles: scan.branchFiles,
       };
+
       setRepos(prev => [...prev, newRepo]);
       setSelectedRepoId(newRepo.id);
       setSelectedPrId(undefined);
-      // Auto-select the current branch and expand the repo
       setSelectedBranchName(scan.currentBranch);
       setCollapsed(prev => ({ ...prev, [newRepo.id]: false }));
 
-      setRepoPathInput('');
-      setAddRepoError(undefined);
-      setOpenVisible(false);
+      setLoadingMessage('Done!');
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 300));
+
+      setIsLoading(false);
+      setLoadingMessage('');
     } catch (e) {
-      const errorMsg =
-        e instanceof Error
-          ? e.message
-          : 'Failed to add repository. Please check the path and try again.';
-      setAddRepoError(errorMsg);
+      setIsLoading(false);
+      setLoadingMessage('');
+      console.error('Failed to add repository:', e);
+      Alert.alert(
+        'Error',
+        `Failed to add repository: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
     }
   };
 
   return (
-    <Wrapper>
-      <View style={[styles.root, { backgroundColor: colors.windowBg }]}>
-        <Sidebar
-          repos={repos}
-          selectedRepoId={selectedRepoId}
-          selectedPrId={selectedPrId}
-          selectedBranchName={selectedBranchName}
-          collapsed={collapsed}
-          onToggleRepo={id =>
-            setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
-          }
-          onSelectRepo={id => {
-            setSelectedRepoId(id);
-          }}
-          onSelectPr={(id, prId) => {
-            setSelectedRepoId(id);
-            setSelectedPrId(prId);
-            setSelectedBranchName(undefined);
-          }}
-          onSelectBranch={(id, br) => {
-            setSelectedRepoId(id);
-            setSelectedBranchName(br);
-            setSelectedPrId(undefined);
-          }}
-        />
-        <View style={styles.main}>
-          <View style={[styles.topBar, { borderBottomColor: colors.border }]}>
+    <View style={[styles.root, { backgroundColor: colors.windowBg }]}>
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <View
+            style={[
+              styles.loadingBox,
+              {
+                backgroundColor: isDarkMode
+                  ? 'rgba(45, 45, 45, 0.95)'
+                  : 'rgba(255, 255, 255, 0.95)',
+                borderColor: isDarkMode ? '#3e3e3e' : '#e5e5e5',
+              },
+            ]}
+          >
+            <ActivityIndicator
+              size="large"
+              color={isDarkMode ? '#4fc1ff' : '#007acc'}
+            />
             <Text
-              style={{
-                color: colors.title,
-                fontWeight: '600',
-                marginRight: 12,
-              }}
-            >
-              Branch Reviewer
-            </Text>
-            <Pressable
-              onPress={() => setOpenVisible(v => !v)}
-              style={({ pressed }) => [
-                {
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 4,
-                  backgroundColor: pressed ? '#eaeef2' : '#f6f8fa',
-                },
+              style={[
+                styles.loadingText,
+                { color: isDarkMode ? '#cccccc' : '#333333' },
               ]}
             >
-              <Text style={{ color: '#24292f' }}>Open Local Repo…</Text>
-            </Pressable>
+              {loadingMessage}
+            </Text>
           </View>
-          {openVisible ? (
-            <View
-              style={[styles.openRow, { borderBottomColor: colors.border }]}
-            >
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TextInput
-                    value={repoPathInput}
-                    onChangeText={text => {
-                      setRepoPathInput(text);
-                      setAddRepoError(undefined);
-                    }}
-                    placeholder="/path/to/repo"
-                    placeholderTextColor={isDarkMode ? '#8b949e' : '#6e7781'}
-                    style={[
-                      styles.openInput,
-                      {
-                        color: isDarkMode ? '#c9d1d9' : '#24292f',
-                        borderColor: addRepoError ? '#f85149' : colors.border,
-                        backgroundColor: isDarkMode ? '#0d1117' : '#ffffff',
-                      },
-                    ]}
-                  />
-                  <Pressable
-                    onPress={addLocalRepo}
-                    style={({ pressed }) => [
-                      styles.openAddBtn,
-                      { backgroundColor: pressed ? '#2c974b' : '#2da44e' },
-                    ]}
-                  >
-                    <Text style={{ color: '#fff', fontWeight: '600' }}>
-                      Add
-                    </Text>
-                  </Pressable>
-                </View>
-                {addRepoError ? (
-                  <Text
-                    style={{ color: '#f85149', fontSize: 12, marginTop: 4 }}
-                  >
-                    {addRepoError}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          ) : null}
-          {selectedPr ? (
-            <PRDetails pr={selectedPr} onAddComment={addComment} />
-          ) : (
-            <BranchDetails
-              branchName={selectedBranchName}
-              baseBranch={selectedRepo?.baseBranch}
-              commits={
-                selectedBranchName
-                  ? selectedRepo?.branchCommits?.[selectedBranchName]
-                  : undefined
-              }
-              files={
-                selectedBranchName
-                  ? selectedRepo?.branchFiles?.[selectedBranchName]
-                  : undefined
-              }
-            />
-          )}
         </View>
+      )}
+      <Sidebar
+        repos={repos}
+        selectedRepoId={selectedRepoId}
+        selectedPrId={selectedPrId}
+        selectedBranchName={selectedBranchName}
+        collapsed={collapsed}
+        onToggleRepo={id =>
+          setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
+        }
+        onSelectRepo={id => {
+          setSelectedRepoId(id);
+        }}
+        onSelectPr={(id, prId) => {
+          setSelectedRepoId(id);
+          setSelectedPrId(prId);
+          setSelectedBranchName(undefined);
+        }}
+        onSelectBranch={async (id, br) => {
+          setSelectedRepoId(id);
+          setSelectedBranchName(br);
+          setSelectedPrId(undefined);
+
+          // Lazy load branch data if not already loaded
+          const repo = repos.find(r => r.id === id);
+          if (
+            repo &&
+            !repo.branchCommits?.[br] &&
+            repo.path &&
+            repo.baseBranch
+          ) {
+            setIsLoading(true);
+            setLoadingMessage(`Loading branch: ${br}`);
+            try {
+              const branchData = await scanBranch(
+                repo.path,
+                br,
+                repo.baseBranch,
+              );
+              if (branchData) {
+                setRepos(prev =>
+                  prev.map(r =>
+                    r.id === id
+                      ? {
+                          ...r,
+                          branchCommits: {
+                            ...r.branchCommits,
+                            [br]: branchData.commits,
+                          },
+                          branchFiles: {
+                            ...r.branchFiles,
+                            [br]: branchData.files,
+                          },
+                        }
+                      : r,
+                  ),
+                );
+              }
+            } catch (e) {
+              console.error('Failed to load branch data:', e);
+            } finally {
+              setIsLoading(false);
+              setLoadingMessage('');
+            }
+          }
+        }}
+        onAddRepo={addLocalRepo}
+      />
+      <View style={styles.main}>
+        {selectedPr ? (
+          <PRDetails pr={selectedPr} onAddComment={addComment} />
+        ) : (
+          <BranchDetails
+            branchName={selectedBranchName}
+            baseBranch={selectedRepo?.baseBranch}
+            commits={
+              selectedBranchName
+                ? selectedRepo?.branchCommits?.[selectedBranchName]
+                : undefined
+            }
+            files={
+              selectedBranchName
+                ? selectedRepo?.branchFiles?.[selectedBranchName]
+                : undefined
+            }
+            repoId={selectedRepoId}
+            lineComments={selectedRepo?.reviewComments}
+            onAddComment={addLineComment}
+            onEditComment={editLineComment}
+            onDeleteComment={deleteLineComment}
+            onToggleResolve={toggleResolveLineComment}
+          />
+        )}
       </View>
-    </Wrapper>
+    </View>
   );
 }
 
 function getColors(isDark: boolean) {
   return {
-    windowBg: isDark ? '#0d1117' : '#ffffff',
-    title: isDark ? '#c9d1d9' : '#24292f',
-    border: isDark ? '#30363d' : '#d0d7de',
+    windowBg: isDark ? '#1e1e1e' : '#f5f5f5',
   };
 }
 
@@ -307,28 +482,33 @@ const styles = StyleSheet.create({
   main: {
     flex: 1,
   },
-  topBar: {
-    height: 36,
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    zIndex: 1000,
   },
-  openRow: {
-    padding: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  loadingBox: {
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+    gap: 16,
+    minWidth: 280,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
-  openInput: {
-    flex: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  openAddBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

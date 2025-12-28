@@ -83,7 +83,8 @@ versions:
 # Help with common flows
 help:
     @echo "Common flows:"
-    @echo "  just dev               # Install deps + pods, start Metro, run app (one-shot)"
+    @echo "  just dev               # Install deps + pods, then start Metro (in this terminal)"
+    @echo "  just macos             # Launch macOS app (run in separate terminal while Metro runs)"
     @echo "  just up                # Alias for dev"
     @echo "  just run-all           # Alias for dev"
     @echo "  just start             # Start Metro"
@@ -101,10 +102,17 @@ help:
     @echo "  just watchman-reseed   # Reset this project's Watchman watch"
     @echo "  just versions          # Show tool versions"
 
-# One-shot dev: install pods (via deps), start Metro in background, then run app
-# Stops Metro when this recipe exits
+# Dev workflow: install deps, pods, and start Metro bundler
+# After Metro starts, run "just macos" or "npm run macos" in another terminal
 dev: install pods
-    ( METRO_PID=""; PORT=""; for p in 8081 8082 8083 8084 8085 8086 8087 8088 8089 8090; do if ! lsof -iTCP:$p -sTCP:LISTEN -n -P >/dev/null 2>&1; then PORT=$p; break; fi; done; if [ -z "$PORT" ]; then echo "No free port found in 8081-8090"; exit 1; fi; echo "Starting Metro on port $PORT..."; npm start -- --port "$PORT" & METRO_PID=$!; trap 'kill -TERM "$METRO_PID" 2>/dev/null || true' EXIT; sleep 2; RCT_METRO_PORT="$PORT" npm run macos -- --port "$PORT" )
+    @echo "✓ Dependencies and CocoaPods installed"
+    @echo "Starting Metro bundler..."
+    @echo ""
+    @echo "Once Metro is ready, run in another terminal:"
+    @echo "  just macos"
+    @echo "  (or: npm run macos)"
+    @echo ""
+    npm start
 
 # Convenience aliases
 up: dev

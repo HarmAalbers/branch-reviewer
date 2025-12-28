@@ -852,8 +852,6 @@ PODS:
   - React-Mapbuffer (0.73.36):
     - glog
     - React-debug
-  - react-native-safe-area-context (4.14.1):
-    - React-Core
   - React-nativeconfig (0.73.36)
   - React-NativeModulesApple (0.73.36):
     - glog
@@ -1050,7 +1048,6 @@ DEPENDENCIES:
   - React-jsinspector (from `../node_modules/react-native-macos/ReactCommon/jsinspector-modern`)
   - React-logger (from `../node_modules/react-native-macos/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native-macos/ReactCommon`)
-  - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-nativeconfig (from `../node_modules/react-native-macos/ReactCommon`)
   - React-NativeModulesApple (from `../node_modules/react-native-macos/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-perflogger (from `../node_modules/react-native-macos/ReactCommon/reactperflogger`)
@@ -1129,8 +1126,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-macos/ReactCommon/logger"
   React-Mapbuffer:
     :path: "../node_modules/react-native-macos/ReactCommon"
-  react-native-safe-area-context:
-    :path: "../node_modules/react-native-safe-area-context"
   React-nativeconfig:
     :path: "../node_modules/react-native-macos/ReactCommon"
   React-NativeModulesApple:
@@ -1204,7 +1199,6 @@ SPEC CHECKSUMS:
   React-jsinspector: 91019096a641a44dc46feeb4fed4dca2bcc76eae
   React-logger: d757a6b9cf55df0e7362a96788a2d205c2646c1e
   React-Mapbuffer: d3881f946268a5028ab4bcaadf6a895d57188862
-  react-native-safe-area-context: 758e894ca5a9bd1868d2a9cfbca7326a2b6bf9dc
   React-nativeconfig: 4222ad633d3b85eb0638169c328ee64ab85847d0
   React-NativeModulesApple: 97c3db6a20c886b77e2192edb08d11ee9f87628b
   React-perflogger: 1cb9ab3093456dfbadda8df6cf027329555f594e
@@ -1228,6 +1222,6 @@ SPEC CHECKSUMS:
   SocketRocket: f6c6249082c011e6de2de60ed641ef8bbe0cfac9
   Yoga: 5b68167bef0647c51944979f135316fac76a634c
 
-PODFILE CHECKSUM: 8c2ee4ec9e1aa17cf5363751c72e636e85ea7de3
+PODFILE CHECKSUM: f640d92471b925c37351aa1bf87b38dc3b00249c
 
 COCOAPODS: 1.16.2

@@ -64,23 +64,131 @@ RCT_EXPORT_MODULE();
   return [s stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
 }
 
+RCT_REMAP_METHOD(pickFolder,
+                 pickFolderWithResolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    [panel setCanChooseFiles:NO];
+    [panel setCanChooseDirectories:YES];
+    [panel setAllowsMultipleSelection:NO];
+    [panel setMessage:@"Select a Git repository folder"];
+    [panel setPrompt:@"Select"];
+
+    [panel beginWithCompletionHandler:^(NSModalResponse result) {
+      if (result == NSModalResponseOK) {
+        NSURL *url = [[panel URLs] firstObject];
+        if (url) {
+          resolve([url path]);
+        } else {
+          reject(@"ENOPATH", @"No path selected", nil);
+        }
+      } else {
+        reject(@"ECANCELLED", @"User cancelled folder selection", nil);
+      }
+    }];
+  });
+}
+
+RCT_REMAP_METHOD(scanBranch,
+                 scanBranchWithPath:(NSString *)path
+                 branchName:(NSString *)branchName
+                 baseBranch:(NSString *)baseBranch
+                 resolver:(RCTPromiseResolveBlock)resolve
+                 rejecter:(RCTPromiseRejectBlock)reject)
+{
+  NSError *err = nil;
+  NSString *range = [NSString stringWithFormat:@"%@..%@", baseBranch, branchName];
+
+  // Get commits
+  NSString *log = [BRGit runGit:@[ @"log", @"--date=iso", @"--pretty=format:%H\x1f%an\x1f%ad\x1f%s", @"-n", @"100", range ] cwd:path error:&err];
+  if (err) {
+    reject(@"EGIT", @"Failed to get commits", err);
+    return;
+  }
+
+  NSMutableArray *commits = [NSMutableArray array];
+  for (NSString *l in [BRGit lines:log]) {
+    if (l.length == 0) continue;
+    NSArray *cols = [l componentsSeparatedByString:@"\x1f"];
+    if (cols.count < 4) continue;
+    [commits addObject:@{ @"hash": cols[0], @"author": cols[1], @"dateISO": cols[2], @"message": cols[3] }];
+  }
+
+  // Get files
+  NSString *diff = [BRGit runGit:@[ @"diff", @"--unified=2", range ] cwd:path error:&err];
+  if (err) {
+    reject(@"EGIT", @"Failed to get diff", err);
+    return;
+  }
+
+  NSMutableArray *files = [NSMutableArray array];
+  NSArray *lines = [BRGit lines:diff];
+  NSMutableArray *curPatch = nil;
+  NSString *curPath = nil;
+  int adds = 0, dels = 0;
+  int patchLineCount = 0;
+
+  for (NSString *line in lines) {
+    if ([line hasPrefix:@"diff --git a/"]) {
+      if (curPath != nil) {
+        [files addObject:@{ @"path": curPath, @"additions": @(adds), @"deletions": @(dels), @"patch": curPatch ?: @[] }];
+        if (files.count >= 50) break;
+      }
+      NSArray *parts = [line componentsSeparatedByString:@" b/"];
+      if (parts.count >= 2) {
+        curPath = [BRGit trim:parts.lastObject];
+      } else {
+        curPath = @"?";
+      }
+      curPatch = [NSMutableArray array];
+      adds = 0; dels = 0;
+      patchLineCount = 0;
+      [curPatch addObject:line];
+      patchLineCount++;
+      continue;
+    }
+    if (curPatch && patchLineCount < 200) {
+      [curPatch addObject:line];
+      patchLineCount++;
+      if ([line hasPrefix:@"+"] && ![line hasPrefix:@"+++"]) adds++;
+      if ([line hasPrefix:@"-"] && ![line hasPrefix:@"---"]) dels++;
+    }
+  }
+  if (curPath != nil && files.count < 50) {
+    [files addObject:@{ @"path": curPath, @"additions": @(adds), @"deletions": @(dels), @"patch": curPatch ?: @[] }];
+  }
+
+  NSDictionary *result = @{ @"commits": commits, @"files": files };
+  resolve(result);
+}
+
 RCT_REMAP_METHOD(scanRepo,
                  scanRepoWithPath:(NSString *)path
                  resolver:(RCTPromiseResolveBlock)resolve
                  rejecter:(RCTPromiseRejectBlock)reject)
 {
+  NSLog(@"[BRGit] scanRepo started for path: %@", path);
   NSError *err = nil;
+
   // Verify this is a git repo
+  NSLog(@"[BRGit] Verifying git repository...");
   NSString *isGit = [BRGit runGit:@[ @"rev-parse", @"--is-inside-work-tree" ] cwd:path error:&err];
   if (isGit == nil || ![[BRGit trim:isGit] isEqualToString:@"true"]) {
+    NSLog(@"[BRGit] Not a git repository!");
     reject(@"ENOTGIT", @"Not a git repository", err);
     return;
   }
+  NSLog(@"[BRGit] Git repository verified");
 
   // Current branch
+  NSLog(@"[BRGit] Getting current branch...");
   NSString *current = [BRGit trim:[BRGit runGit:@[ @"rev-parse", @"--abbrev-ref", @"HEAD" ] cwd:path error:&err] ?: @""];
+  NSLog(@"[BRGit] Current branch: %@", current);
 
   // Base branch: prefer origin/HEAD, else main/master
+  NSLog(@"[BRGit] Determining base branch...");
   NSString *originHead = [BRGit runGit:@[ @"symbolic-ref", @"refs/remotes/origin/HEAD" ] cwd:path error:nil];
   NSString *base = nil;
   if (originHead.length > 0) {
@@ -95,8 +203,10 @@ RCT_REMAP_METHOD(scanRepo,
     if ([BRGit runGit:@[ @"rev-parse", @"--verify", @"master" ] cwd:path error:nil]) base = @"master";
   }
   if (base.length == 0) base = @"main";
+  NSLog(@"[BRGit] Base branch: %@", base);
 
   // Branch list
+  NSLog(@"[BRGit] Getting branch list...");
   NSString *branchesRaw = [BRGit runGit:@[ @"branch", @"--list" ] cwd:path error:&err];
   NSArray *branchLines = [BRGit lines:branchesRaw];
   NSMutableArray *branches = [NSMutableArray array];
@@ -107,13 +217,19 @@ RCT_REMAP_METHOD(scanRepo,
     if (t.length == 0) continue;
     [branches addObject:@{ @"name": t, @"isCurrent": @(isCur) }];
   }
+  NSLog(@"[BRGit] Found %lu branches", (unsigned long)branches.count);
 
-  // Helper to get commits since base
+  // Only load commits/files for current branch initially (for speed)
+  // Other branches will be loaded on-demand when selected
   NSMutableDictionary *branchCommits = [NSMutableDictionary dictionary];
-  for (NSDictionary *br in branches) {
-    NSString *name = br[@"name"];
-    NSString *range = [NSString stringWithFormat:@"%@..%@", base, name];
-    NSString *log = [BRGit runGit:@[ @"log", @"--date=iso", @"--pretty=format:%H\x1f%an\x1f%ad\x1f%s", range ] cwd:path error:nil] ?: @"";
+  NSMutableDictionary *branchFiles = [NSMutableDictionary dictionary];
+
+  if (current.length > 0) {
+    NSString *range = [NSString stringWithFormat:@"%@..%@", base, current];
+
+    // Get commits for current branch
+    NSLog(@"[BRGit] Getting commits for current branch '%@' (range: %@)...", current, range);
+    NSString *log = [BRGit runGit:@[ @"log", @"--date=iso", @"--pretty=format:%H\x1f%an\x1f%ad\x1f%s", @"-n", @"100", range ] cwd:path error:nil] ?: @"";
     NSMutableArray *commits = [NSMutableArray array];
     for (NSString *l in [BRGit lines:log]) {
       if (l.length == 0) continue;
@@ -121,51 +237,38 @@ RCT_REMAP_METHOD(scanRepo,
       if (cols.count < 4) continue;
       [commits addObject:@{ @"hash": cols[0], @"author": cols[1], @"dateISO": cols[2], @"message": cols[3] }];
     }
-    branchCommits[name] = commits;
-  }
+    branchCommits[current] = commits;
+    NSLog(@"[BRGit] Found %lu commits", (unsigned long)commits.count);
 
-  // Files changed per branch with small patches
-  NSMutableDictionary *branchFiles = [NSMutableDictionary dictionary];
-  for (NSDictionary *br in branches) {
-    NSString *name = br[@"name"];
-    NSString *range = [NSString stringWithFormat:@"%@..%@", base, name];
-    NSString *diff = [BRGit runGit:@[ @"diff", @"--unified=2", range ] cwd:path error:nil] ?: @"";
+    // Get files for current branch (use --numstat for speed, no patches initially)
+    NSLog(@"[BRGit] Getting file list for current branch (fast mode)...");
+    NSString *numstat = [BRGit runGit:@[ @"diff", @"--numstat", range ] cwd:path error:nil] ?: @"";
+    NSLog(@"[BRGit] Numstat returned %lu characters", (unsigned long)numstat.length);
     NSMutableArray *files = [NSMutableArray array];
-    NSArray *lines = [BRGit lines:diff];
-    NSMutableArray *curPatch = nil;
-    NSString *curPath = nil;
-    int adds = 0, dels = 0;
 
-    for (NSString *line in lines) {
-      if ([line hasPrefix:@"diff --git a/"]) {
-        if (curPath != nil) {
-          [files addObject:@{ @"path": curPath, @"additions": @(adds), @"deletions": @(dels), @"patch": curPatch ?: @[] }];
-        }
-        // Parse file path from "diff --git a/xxx b/xxx"
-        NSArray *parts = [line componentsSeparatedByString:@" b/"];
-        if (parts.count >= 2) {
-          NSString *right = parts.lastObject;
-          curPath = [BRGit trim:right];
-        } else {
-          curPath = @"?";
-        }
-        curPatch = [NSMutableArray array];
-        adds = 0; dels = 0;
-        [curPatch addObject:line];
-        continue;
-      }
-      if (curPatch) {
-        [curPatch addObject:line];
-        if ([line hasPrefix:@"+"] && ![line hasPrefix:@"+++"]) adds++;
-        if ([line hasPrefix:@"-"] && ![line hasPrefix:@"---"]) dels++;
-      }
+    // Parse numstat output: "additions\tdeletions\tfilename"
+    for (NSString *line in [BRGit lines:numstat]) {
+      if (line.length == 0) continue;
+      NSArray *parts = [line componentsSeparatedByString:@"\t"];
+      if (parts.count < 3) continue;
+
+      NSString *addsStr = parts[0];
+      NSString *delsStr = parts[1];
+      NSString *path = parts[2];
+
+      int adds = [addsStr isEqualToString:@"-"] ? 0 : [addsStr intValue];
+      int dels = [delsStr isEqualToString:@"-"] ? 0 : [delsStr intValue];
+
+      // Store file info with empty patch (will be loaded on demand)
+      [files addObject:@{ @"path": path, @"additions": @(adds), @"deletions": @(dels), @"patch": @[] }];
+
+      if (files.count >= 50) break; // Limit to 50 files
     }
-    if (curPath != nil) {
-      [files addObject:@{ @"path": curPath, @"additions": @(adds), @"deletions": @(dels), @"patch": curPatch ?: @[] }];
-    }
-    branchFiles[name] = files;
+    branchFiles[current] = files;
+    NSLog(@"[BRGit] Processed %lu files", (unsigned long)files.count);
   }
 
+  NSLog(@"[BRGit] scanRepo complete, returning result");
   NSDictionary *result = @{ @"branches": branches,
                              @"currentBranch": current ?: @"",
                              @"baseBranch": base ?: @"main",

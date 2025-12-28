@@ -32,7 +32,8 @@ npm start
 npm run macos
 # or: just macos
 
-# One-shot dev command (installs deps, pods, starts Metro, runs app)
+# Dev workflow command (installs deps, pods, starts Metro)
+# Then run "just macos" in a separate terminal
 just dev
 ```
 
