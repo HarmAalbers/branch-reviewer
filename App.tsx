@@ -1,258 +1,133 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import Sidebar from './src/components/Sidebar';
-import PRDetails from './src/components/PRDetails';
 import BranchDetails from './src/components/BranchDetails';
-import {ErrorBoundary} from './src/components/ErrorBoundary';
-import type {
-  Repo,
-  PullRequest,
-  LineComments,
-  ReviewComment,
-} from './src/types';
-import {loadState, saveState} from './src/storage';
-import {scanRepo, scanBranch, pickFolder} from './src/gitLocal';
-import {useTheme} from './src/hooks/useTheme';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import type { Repo } from './src/types';
+import { loadState, saveState } from './src/storage';
+import { scanRepo, scanBranch, pickFolder } from './src/gitLocal';
+import { useTheme } from './src/hooks/useTheme';
+import { useLoading } from './src/hooks/useLoading';
+import {
+  commentsReducer,
+  type CommentAction,
+} from './src/state/commentsReducer';
 
 function App() {
-  const {isDark: isDarkMode, colors} = useTheme();
+  const { isDark: isDarkMode, colors } = useTheme();
+  const {
+    isLoading,
+    message: loadingMessage,
+    startLoading,
+    updateMessage,
+    stopLoading,
+  } = useLoading();
 
   const [repos, setRepos] = useState<Repo[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | undefined>(
-    undefined,
-  );
-  const [selectedPrId, setSelectedPrId] = useState<string | undefined>(
     undefined,
   );
   const [selectedBranchName, setSelectedBranchName] = useState<
     string | undefined
   >(undefined);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
 
   const selectedRepo = useMemo(
     () => repos.find(r => r.id === selectedRepoId),
     [repos, selectedRepoId],
   );
-  const selectedPr: PullRequest | undefined = useMemo(() => {
-    const repo = selectedRepo;
-    return repo?.pullRequests.find(p => p.id === selectedPrId);
-  }, [selectedRepo, selectedPrId]);
 
-  const addComment = useCallback(
-    (body: string) => {
-      setRepos(prev =>
-        prev.map(r => {
-          if (r.id !== selectedRepoId) return r;
-          return {
-            ...r,
-            pullRequests: r.pullRequests.map(p => {
-              if (p.id !== selectedPrId) return p;
-              const newComment = {
-                id: Math.random().toString(36).slice(2),
-                author: 'you',
-                body,
-                createdAt: new Date().toISOString(),
-              };
-              return {...p, comments: [...p.comments, newComment]};
-            }),
-          };
-        }),
-      );
-    },
-    [selectedRepoId, selectedPrId],
-  );
+  // Comment management via reducer
+  const dispatchCommentAction = useCallback((action: CommentAction) => {
+    setRepos(prev => commentsReducer(prev, action));
+  }, []);
 
   const addLineComment = useCallback(
     (filePath: string, lineNumber: number, body: string, parentId?: string) => {
       if (!selectedRepoId || !selectedBranchName) return;
-
-      setRepos(prev =>
-        prev.map(r => {
-          if (r.id !== selectedRepoId) return r;
-
-          const newComment: ReviewComment = {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-            body,
-            createdAt: new Date().toISOString(),
-            parentId,
-          };
-
-          const existingComments = r.reviewComments || [];
-          const existingLineComment = existingComments.find(
-            lc =>
-              lc.repoId === selectedRepoId &&
-              lc.branchName === selectedBranchName &&
-              lc.filePath === filePath &&
-              lc.lineNumber === lineNumber,
-          );
-
-          let updatedComments: LineComments[];
-          if (existingLineComment) {
-            updatedComments = existingComments.map(lc =>
-              lc === existingLineComment
-                ? {...lc, comments: [...lc.comments, newComment]}
-                : lc,
-            );
-          } else {
-            updatedComments = [
-              ...existingComments,
-              {
-                repoId: selectedRepoId,
-                branchName: selectedBranchName,
-                filePath,
-                lineNumber,
-                comments: [newComment],
-              },
-            ];
-          }
-
-          return {...r, reviewComments: updatedComments};
-        }),
-      );
+      dispatchCommentAction({
+        type: 'ADD_LINE_COMMENT',
+        payload: {
+          repoId: selectedRepoId,
+          branchName: selectedBranchName,
+          filePath,
+          lineNumber,
+          body,
+          parentId,
+        },
+      });
     },
-    [selectedRepoId, selectedBranchName],
+    [selectedRepoId, selectedBranchName, dispatchCommentAction],
   );
 
   const editLineComment = useCallback(
     (filePath: string, lineNumber: number, commentId: string, body: string) => {
       if (!selectedRepoId || !selectedBranchName) return;
-
-      setRepos(prev =>
-        prev.map(r => {
-          if (r.id !== selectedRepoId) return r;
-
-          const updatedComments = (r.reviewComments || []).map(lc => {
-            if (
-              lc.repoId === selectedRepoId &&
-              lc.branchName === selectedBranchName &&
-              lc.filePath === filePath &&
-              lc.lineNumber === lineNumber
-            ) {
-              return {
-                ...lc,
-                comments: lc.comments.map(c =>
-                  c.id === commentId
-                    ? {...c, body, updatedAt: new Date().toISOString()}
-                    : c,
-                ),
-              };
-            }
-            return lc;
-          });
-
-          return {...r, reviewComments: updatedComments};
-        }),
-      );
+      dispatchCommentAction({
+        type: 'EDIT_LINE_COMMENT',
+        payload: {
+          repoId: selectedRepoId,
+          branchName: selectedBranchName,
+          filePath,
+          lineNumber,
+          commentId,
+          body,
+        },
+      });
     },
-    [selectedRepoId, selectedBranchName],
+    [selectedRepoId, selectedBranchName, dispatchCommentAction],
   );
 
   const deleteLineComment = useCallback(
     (filePath: string, lineNumber: number, commentId: string) => {
       if (!selectedRepoId || !selectedBranchName) return;
-
-      setRepos(prev =>
-        prev.map(r => {
-          if (r.id !== selectedRepoId) return r;
-
-          const updatedComments = (r.reviewComments || [])
-            .map(lc => {
-              if (
-                lc.repoId === selectedRepoId &&
-                lc.branchName === selectedBranchName &&
-                lc.filePath === filePath &&
-                lc.lineNumber === lineNumber
-              ) {
-                const filteredComments = lc.comments.filter(
-                  c => c.id !== commentId,
-                );
-                return filteredComments.length > 0
-                  ? {...lc, comments: filteredComments}
-                  : null;
-              }
-              return lc;
-            })
-            .filter((lc): lc is LineComments => lc !== null);
-
-          return {...r, reviewComments: updatedComments};
-        }),
-      );
+      dispatchCommentAction({
+        type: 'DELETE_LINE_COMMENT',
+        payload: {
+          repoId: selectedRepoId,
+          branchName: selectedBranchName,
+          filePath,
+          lineNumber,
+          commentId,
+        },
+      });
     },
-    [selectedRepoId, selectedBranchName],
+    [selectedRepoId, selectedBranchName, dispatchCommentAction],
   );
 
   const toggleResolveLineComment = useCallback(
     (filePath: string, lineNumber: number) => {
       if (!selectedRepoId || !selectedBranchName) return;
-
-      setRepos(prev =>
-        prev.map(r => {
-          if (r.id !== selectedRepoId) return r;
-
-          const updatedComments = (r.reviewComments || []).map(lc => {
-            if (
-              lc.repoId === selectedRepoId &&
-              lc.branchName === selectedBranchName &&
-              lc.filePath === filePath &&
-              lc.lineNumber === lineNumber
-            ) {
-              const currentlyResolved = lc.comments[0]?.isResolved;
-              return {
-                ...lc,
-                comments: lc.comments.map(c => ({
-                  ...c,
-                  isResolved: !currentlyResolved,
-                })),
-              };
-            }
-            return lc;
-          });
-
-          return {...r, reviewComments: updatedComments};
-        }),
-      );
+      dispatchCommentAction({
+        type: 'TOGGLE_RESOLVE_LINE_COMMENT',
+        payload: {
+          repoId: selectedRepoId,
+          branchName: selectedBranchName,
+          filePath,
+          lineNumber,
+        },
+      });
     },
-    [selectedRepoId, selectedBranchName],
+    [selectedRepoId, selectedBranchName, dispatchCommentAction],
   );
 
   const onToggleRepo = useCallback((id: string) => {
-    setCollapsed(prev => ({...prev, [id]: !prev[id]}));
+    setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
   const onSelectRepo = useCallback((id: string) => {
     setSelectedRepoId(id);
   }, []);
 
-  const onSelectPr = useCallback((id: string, prId: string) => {
-    setSelectedRepoId(id);
-    setSelectedPrId(prId);
-    setSelectedBranchName(undefined);
-  }, []);
-
   const onSelectBranch = useCallback(
     async (id: string, br: string) => {
       setSelectedRepoId(id);
       setSelectedBranchName(br);
-      setSelectedPrId(undefined);
 
       // Lazy load branch data if not already loaded
       const repo = repos.find(r => r.id === id);
-      if (
-        repo &&
-        !repo.branchCommits?.[br] &&
-        repo.path &&
-        repo.baseBranch
-      ) {
-        setIsLoading(true);
-        setLoadingMessage(`Loading branch: ${br}`);
+      if (repo && !repo.branchCommits?.[br] && repo.path && repo.baseBranch) {
+        startLoading(`Loading branch: ${br}`);
         try {
           const branchData = await scanBranch(repo.path, br, repo.baseBranch);
           setRepos(prev =>
@@ -281,46 +156,20 @@ function App() {
             }\n\nPlease check that the repository is accessible.`,
           );
         } finally {
-          setIsLoading(false);
-          setLoadingMessage('');
+          stopLoading();
         }
       }
     },
-    [repos],
+    [repos, startLoading, stopLoading],
   );
 
   useEffect(() => {
     const persisted = loadState();
     if (persisted) {
-      // Migration: previous builds bundled a stale main.jsbundle that seeded demo repos.
-      // If repos look like demo data (ids like r1/r2 and no local path set), drop them.
-      const incoming = Array.isArray(persisted.repos) ? persisted.repos : [];
-      const looksLikeDemo =
-        incoming.length > 0 &&
-        incoming.every(
-          (r: any) =>
-            !r.path && typeof r.id === 'string' && /^r\d+$/.test(r.id),
-        );
-      const cleaned = looksLikeDemo ? [] : incoming;
-
-      setRepos(cleaned);
-      setSelectedRepoId(looksLikeDemo ? undefined : persisted.selectedRepoId);
-      setSelectedPrId(looksLikeDemo ? undefined : persisted.selectedPrId);
-      setSelectedBranchName(
-        looksLikeDemo ? undefined : persisted.selectedBranchName,
-      );
+      setRepos(persisted.repos || []);
+      setSelectedRepoId(persisted.selectedRepoId);
+      setSelectedBranchName(persisted.selectedBranchName);
       setCollapsed(persisted.collapsed ?? {});
-
-      // If we cleaned demo data, persist the cleanup immediately to avoid it coming back.
-      if (looksLikeDemo) {
-        saveState({
-          repos: [],
-          selectedRepoId: undefined,
-          selectedPrId: undefined,
-          selectedBranchName: undefined,
-          collapsed: persisted.collapsed ?? {},
-        });
-      }
     }
   }, []);
 
@@ -328,31 +177,29 @@ function App() {
     saveState({
       repos,
       selectedRepoId,
-      selectedPrId,
       selectedBranchName,
       collapsed,
     });
-  }, [repos, selectedRepoId, selectedPrId, selectedBranchName, collapsed]);
+  }, [repos, selectedRepoId, selectedBranchName, collapsed]);
 
   const addLocalRepo = async () => {
     try {
-      setLoadingMessage('Select a repository folder...');
+      startLoading('Select a repository folder...');
       const path = await pickFolder();
 
       if (!path) {
-        setLoadingMessage('');
+        stopLoading();
         return; // User cancelled
       }
 
-      setIsLoading(true);
+      startLoading('Step 1/6: Validating git repository...');
       const nameSegs = path.split(/[\\/]/).filter(Boolean);
       const name = nameSegs[nameSegs.length - 1] || path;
 
-      setLoadingMessage(`Step 1/6: Validating git repository...`);
       await new Promise<void>(resolve => setTimeout(() => resolve(), 50));
 
       const scan = await scanRepo(path, (step: string) => {
-        setLoadingMessage(step);
+        updateMessage(step);
       });
 
       if (
@@ -360,8 +207,7 @@ function App() {
         !Array.isArray(scan.branches) ||
         scan.branches.length === 0
       ) {
-        setIsLoading(false);
-        setLoadingMessage('');
+        stopLoading();
         Alert.alert(
           'Invalid Repository',
           'The selected folder is not a valid Git repository or has no branches.',
@@ -369,7 +215,7 @@ function App() {
         return;
       }
 
-      setLoadingMessage(`Finalizing...`);
+      updateMessage('Finalizing...');
       await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
 
       const newRepo: Repo = {
@@ -385,18 +231,15 @@ function App() {
 
       setRepos(prev => [...prev, newRepo]);
       setSelectedRepoId(newRepo.id);
-      setSelectedPrId(undefined);
       setSelectedBranchName(scan.currentBranch);
       setCollapsed(prev => ({ ...prev, [newRepo.id]: false }));
 
-      setLoadingMessage('Done!');
+      updateMessage('Done!');
       await new Promise<void>(resolve => setTimeout(() => resolve(), 300));
 
-      setIsLoading(false);
-      setLoadingMessage('');
+      stopLoading();
     } catch (e) {
-      setIsLoading(false);
-      setLoadingMessage('');
+      stopLoading();
       console.error('Failed to add repository:', e);
       Alert.alert(
         'Error',
@@ -441,21 +284,16 @@ function App() {
         <Sidebar
           repos={repos}
           selectedRepoId={selectedRepoId}
-          selectedPrId={selectedPrId}
           selectedBranchName={selectedBranchName}
           collapsed={collapsed}
           onToggleRepo={onToggleRepo}
           onSelectRepo={onSelectRepo}
-          onSelectPr={onSelectPr}
           onSelectBranch={onSelectBranch}
           onAddRepo={addLocalRepo}
         />
       </ErrorBoundary>
       <ErrorBoundary componentName="BranchDetails">
         <View style={styles.main}>
-        {selectedPr ? (
-          <PRDetails pr={selectedPr} onAddComment={addComment} />
-        ) : (
           <BranchDetails
             branchName={selectedBranchName}
             baseBranch={selectedRepo?.baseBranch}
@@ -476,7 +314,6 @@ function App() {
             onDeleteComment={deleteLineComment}
             onToggleResolve={toggleResolveLineComment}
           />
-        )}
         </View>
       </ErrorBoundary>
     </View>
