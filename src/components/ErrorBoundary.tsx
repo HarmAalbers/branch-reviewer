@@ -1,5 +1,6 @@
 import React, {Component, ErrorInfo, ReactNode} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, useColorScheme} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {useTheme} from '../hooks/useTheme';
 
 interface Props {
   children: ReactNode;
@@ -160,17 +161,7 @@ function ErrorFallback({
   errorCount: number;
   onReset: () => void;
 }) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = {
-    bg: isDark ? '#1e1e1e' : '#ffffff',
-    fg: isDark ? '#cccccc' : '#333333',
-    muted: isDark ? '#858585' : '#6c6c6c',
-    border: isDark ? '#3e3e3e' : '#e5e5e5',
-    danger: isDark ? '#f85149' : '#cf222e',
-    buttonBg: isDark ? '#238636' : '#2da44e',
-    buttonText: '#ffffff',
-    buttonPressed: isDark ? '#2c974b' : '#2ea043',
-  };
+  const {colors} = useTheme();
 
   return (
     <View style={[styles.container, {backgroundColor: colors.bg}]}>
@@ -178,7 +169,7 @@ function ErrorFallback({
         style={[
           styles.errorBox,
           {
-            backgroundColor: isDark ? '#2d2d30' : '#f8f8f8',
+            backgroundColor: colors.contentBg,
             borderColor: colors.border,
           },
         ]}
@@ -208,10 +199,10 @@ function ErrorFallback({
             onPress={onReset}
             style={[
               styles.button,
-              {backgroundColor: colors.buttonBg},
+              {backgroundColor: colors.buttonPrimary},
             ]}
           >
-            <Text style={[styles.buttonText, {color: colors.buttonText}]}>
+            <Text style={[styles.buttonText, {color: '#ffffff'}]}>
               Try Again
             </Text>
           </TouchableOpacity>

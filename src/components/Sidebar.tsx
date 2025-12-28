@@ -5,9 +5,9 @@ import {
   View,
   Pressable,
   StyleSheet,
-  useColorScheme,
 } from 'react-native';
-import type { Repo } from '../types';
+import type {Repo} from '../types';
+import {useTheme} from '../hooks/useTheme';
 
 export type SidebarProps = {
   repos: Repo[];
@@ -34,8 +34,7 @@ export function Sidebar({
   onSelectBranch,
   onAddRepo,
 }: SidebarProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = getColors(isDark);
+  const {colors} = useTheme();
 
   return (
     <View
@@ -206,18 +205,6 @@ export function Sidebar({
       </ScrollView>
     </View>
   );
-}
-
-function getColors(isDark: boolean) {
-  return {
-    bg: isDark ? '#252526' : '#f3f3f3',
-    fg: isDark ? '#cccccc' : '#333333',
-    muted: isDark ? '#858585' : '#6c6c6c',
-    border: isDark ? '#3e3e3e' : '#e5e5e5',
-    selected: isDark ? '#37373d' : '#e8e8e8',
-    rowPressed: isDark ? '#2a2d2e' : '#e0e0e0',
-    currentDot: isDark ? '#4fc1ff' : '#007acc',
-  };
 }
 
 const styles = StyleSheet.create({

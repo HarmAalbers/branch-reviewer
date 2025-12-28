@@ -4,7 +4,6 @@ import {
   Alert,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from 'react-native';
 import Sidebar from './src/components/Sidebar';
@@ -17,11 +16,12 @@ import type {
   LineComments,
   ReviewComment,
 } from './src/types';
-import { loadState, saveState } from './src/storage';
-import { scanRepo, scanBranch, pickFolder } from './src/gitLocal';
+import {loadState, saveState} from './src/storage';
+import {scanRepo, scanBranch, pickFolder} from './src/gitLocal';
+import {useTheme} from './src/hooks/useTheme';
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const {isDark: isDarkMode, colors} = useTheme();
 
   const [repos, setRepos] = useState<Repo[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | undefined>(
@@ -289,8 +289,6 @@ function App() {
     [repos],
   );
 
-  const colors = getColors(isDarkMode);
-
   useEffect(() => {
     const persisted = loadState();
     if (persisted) {
@@ -483,12 +481,6 @@ function App() {
       </ErrorBoundary>
     </View>
   );
-}
-
-function getColors(isDark: boolean) {
-  return {
-    windowBg: isDark ? '#1e1e1e' : '#f5f5f5',
-  };
 }
 
 const styles = StyleSheet.create({

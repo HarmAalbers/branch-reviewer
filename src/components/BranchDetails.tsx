@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   ScrollView,
   StyleSheet,
   Text,
   View,
-  useColorScheme,
   TouchableOpacity,
 } from 'react-native';
-import type { FileChange, Commit, LineComments } from '../types';
-import { CommentThread } from './CommentThread';
+import type {FileChange, Commit, LineComments} from '../types';
+import {CommentThread} from './CommentThread';
+import {useTheme, type ThemeColors} from '../hooks/useTheme';
 
 export type BranchDetailsProps = {
   branchName?: string;
@@ -49,8 +49,7 @@ export function BranchDetails({
   onDeleteComment,
   onToggleResolve,
 }: BranchDetailsProps) {
-  const isDark = useColorScheme() === 'dark';
-  const c = getColors(isDark);
+  const {colors: c} = useTheme();
   const [activeCommentLine, setActiveCommentLine] = useState<{
     filePath: string;
     lineNumber: number;
@@ -260,28 +259,13 @@ export function BranchDetails({
   );
 }
 
-function getLineColor(line: string, c: ReturnType<typeof getColors>) {
+function getLineColor(line: string, c: ThemeColors) {
   if (line.startsWith('+')) return c.add;
   if (line.startsWith('-')) return c.del;
   return c.code;
 }
 
 const monospaceFont = 'Menlo, monospace';
-
-function getColors(isDark: boolean) {
-  return {
-    bg: isDark ? '#1e1e1e' : '#ffffff',
-    contentBg: isDark ? '#252526' : '#f8f8f8',
-    fg: isDark ? '#cccccc' : '#333333',
-    muted: isDark ? '#858585' : '#6c6c6c',
-    border: isDark ? '#3e3e3e' : '#e5e5e5',
-    code: isDark ? '#d4d4d4' : '#1e1e1e',
-    add: isDark ? '#4ec9b0' : '#098658',
-    del: isDark ? '#f48771' : '#a31515',
-    commentIndicatorBg: isDark ? '#2d2d3050' : '#f6f8fa50',
-    link: isDark ? '#58a6ff' : '#0969da',
-  };
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, gap: 20 },
