@@ -54,7 +54,7 @@ Before contributing, ensure you have:
 5. **Install pre-commit hooks**:
 
    ```bash
-   npx husky init
+   npm install  # This runs the "prepare": "husky" script automatically
    # or: just hooks-install
    ```
 
@@ -347,9 +347,9 @@ import { NativeModules } from 'react-native';
 
 **Examples**:
 
-- Adding analytics? ❌ **Blocked by ADR-002** (local-only)
+- Adding analytics? ❌ **Blocked by ADR-008** (local-only)
 - Adding Redux? ❌ **Blocked by ADR-004** (use hooks)
-- Supporting iOS? ❌ **Blocked by ADR-003** (macOS-only)
+- Supporting iOS? ❌ **Blocked by ADR-001** (macOS-only)
 
 ## Submitting Changes
 
@@ -444,7 +444,7 @@ See [SECURITY.md](./SECURITY.md) for security guidelines.
 
 **Key security rules**:
 
-- ❌ **Never add network calls** (ADR-002)
+- ❌ **Never add network calls** (ADR-008)
 - ❌ **Never commit secrets** (API keys, tokens, etc.)
 - ✅ **Validate all user inputs** (file paths, repository paths)
 - ✅ **Add tests for security-critical code**

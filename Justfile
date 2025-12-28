@@ -14,8 +14,7 @@ install:
 
 # Install git hooks with Husky
 hooks-install:
-    npm install
-    npx husky init
+    npm install  # This runs the "prepare": "husky" script automatically
     chmod +x .husky/pre-commit
 
 # Start Metro bundler

@@ -18,6 +18,7 @@ on:
     branches: ['**']
   pull_request:
     branches: [main]
+  workflow_dispatch:
   schedule:
     # Run weekly on Mondays at 00:00 UTC to catch new vulnerabilities
     - cron: '0 0 * * 1'
@@ -27,6 +28,9 @@ jobs:
     name: Analyze (${{ matrix.language }})
     runs-on: macos-15  # Must use macOS for this macOS-only project (ADR-001)
     timeout-minutes: 15
+    concurrency:
+      group: codeql-${{ github.ref }}-${{ matrix.language }}
+      cancel-in-progress: true
     permissions:
       # Required for all workflows
       security-events: write
@@ -66,7 +70,7 @@ jobs:
       # CodeQL needs to see node_modules to understand imports
       - name: Install dependencies
         if: matrix.language == 'javascript-typescript'
-        run: npm install
+        run: npm ci
 
       # Initialize CodeQL tools for scanning
       - name: Initialize CodeQL
@@ -78,17 +82,9 @@ jobs:
           # Options: security-extended (default), security-and-quality (comprehensive)
           queries: security-and-quality
 
-      # Manual build step (not needed for this project)
-      # GitHub Actions and JavaScript/TypeScript use build-mode: none
-      - name: Run manual build steps
-        if: matrix.build-mode == 'manual'
-        shell: bash
-        run: |
-          echo 'Manual build not required for this project'
-          exit 1
-
       # Perform CodeQL analysis and upload results
       - name: Perform CodeQL Analysis
+        id: codeql-analysis
         uses: github/codeql-action/analyze@v4
         with:
           category: '/language:${{ matrix.language }}'
@@ -99,11 +95,20 @@ jobs:
           # Wait for GitHub to process results
           wait-for-processing: true
 
+      - name: Report CodeQL failure
+        if: failure() && steps.codeql-analysis.outcome == 'failure'
+        run: |
+          echo "::error::CodeQL analysis failed for language: ${{ matrix.language }}"
+          echo "::error::Query suite: security-and-quality"
+          echo "::error::Build mode: ${{ matrix.build-mode }}"
+          echo "::error::Check the SARIF artifact for detailed results"
+
       # Upload SARIF files as artifacts for review and debugging
       # Retained for 7 days, can be downloaded from Actions tab
       - name: Upload SARIF results as artifact
         uses: actions/upload-artifact@v4
-        if: always()
+        if: success() || failure()  # Skip only on cancellation
+        continue-on-error: false  # Fail workflow if upload fails
         with:
           name: codeql-sarif-${{ matrix.language }}
           path: sarif-results
