@@ -185,6 +185,24 @@ See `src/types.ts` for TypeScript definitions:
 - Prevents expensive recrawls that can trigger "MustScanSubDirs" or "UserDropped" warnings
 - If recrawl warnings occur, run `just watchman-reseed` to reset the watch
 
+### Metro configuration
+
+Metro bundler is configured in `metro.config.js` with:
+
+- **Platform support**: Adds 'macos' to Metro's recognized platforms
+- **Module aliasing**: Maps both 'react-native' and 'react-native-macos' to the same react-native-macos package
+- **Custom resolver**: Uses `resolver.resolveRequest` to handle module aliasing
+
+**IMPORTANT - Custom Resolver Pattern**:
+
+- Use `context.resolveRequest(context, moduleName, platform)` to delegate to Metro's default resolver
+- NEVER call `metroResolver.resolve()` directly (causes infinite recursion/stack overflow)
+- NEVER return `null` to delegate (not a valid Resolution type)
+- Always add defensive check: verify `context.resolveRequest` exists before calling
+- Return proper Resolution objects: `{type: 'sourceFile', filePath: string}`
+
+See ADR-007 for detailed Metro configuration best practices and troubleshooting.
+
 ## Testing
 
 ### Test Infrastructure

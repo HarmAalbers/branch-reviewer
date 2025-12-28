@@ -1,15 +1,19 @@
 # ADR-007: Metro + Xcode Dual Build Pipeline
 
 ## Status
+
 Approved
 
 ## Context
+
 React Native macOS requires JavaScript bundling for both development and production. Debug builds benefit from Metro's fast refresh and hot module reloading, while Release builds need a self-contained bundle embedded in the .app package. Mixing Debug and Release strategies causes issues: stale pre-bundled code in Debug mode, or Metro dependency in Release builds. A clear separation is needed.
 
 ## Decision
+
 Use Metro bundler running on port 8081 for Debug builds (with fast refresh), and Xcode build phase scripts for Release builds (embedding main.jsbundle in .app). Debug builds connect to Metro unless `USE_PREBUNDLED_DEBUG=1` is set. Release builds always use embedded bundle.
 
 ## Allowed
+
 - **Metro bundler for Debug builds**:
   - Running on port 8081 (`npm start` or `just start`)
   - Fast refresh and hot module reloading enabled
@@ -32,8 +36,16 @@ Use Metro bundler running on port 8081 for Debug builds (with fast refresh), and
 - **Metro configuration** in `metro.config.js`:
   - Watchman integration for fast file watching
   - Blacklist/ignore patterns for heavy directories
+  - Custom resolver for react-native/react-native-macos aliasing
+- **Custom resolver pattern** (`resolver.resolveRequest`):
+  - Use `context.resolveRequest(context, moduleName, platform)` to delegate to Metro's default resolver
+  - NEVER call `metroResolver.resolve()` directly (causes circular dependencies)
+  - NEVER return `null` to delegate (not a valid Resolution type)
+  - Add defensive checks for `context.resolveRequest` existence
+  - Return proper Resolution objects: `{type: 'sourceFile', filePath: string}`
 
 ## Prohibited
+
 - **Committing main.jsbundle to version control** (.gitignore includes `macos/main.jsbundle`)
 - **Requiring Metro for Release builds** (Release .app must be standalone)
 - **Hardcoded bundle paths in Debug builds** (use Metro URL or fallback)
@@ -41,10 +53,14 @@ Use Metro bundler running on port 8081 for Debug builds (with fast refresh), and
 - **Bundling on every Debug run** (Metro dev server is preferred for iteration)
 - **Pre-bundling in Debug by default** (only via USE_PREBUNDLED_DEBUG env var)
 - **Manual bundling steps in Xcode Release build** (build script automates this)
+- **Calling `metroResolver.resolve()` in custom resolvers** (causes infinite recursion)
+- **Returning `null` from custom resolvers to delegate** (not a valid Resolution type, use `context.resolveRequest()`)
+- **Custom resolvers without defensive checks** (must verify `context.resolveRequest` exists)
 
 ## Consequences
 
 ### Positive
+
 - **Fast Debug iteration**: Metro fast refresh updates code instantly (<1s)
 - **Standalone Release builds**: .app works offline without Metro
 - **Clear separation**: Debug and Release modes don't interfere
@@ -53,6 +69,7 @@ Use Metro bundler running on port 8081 for Debug builds (with fast refresh), and
 - **Just automation**: Simple commands for common tasks
 
 ### Negative
+
 - **Metro must be running for Debug**: Common pain point for new developers
 - **Build scripts can break**: React Native upgrades may break bundling scripts
 - **Two bundle mechanisms**: Debug (Metro) and Release (Xcode script) must stay in sync
@@ -62,6 +79,7 @@ Use Metro bundler running on port 8081 for Debug builds (with fast refresh), and
 ## Enforcement
 
 ### .gitignore
+
 - **MUST include**:
   ```
   macos/main.jsbundle
@@ -71,6 +89,7 @@ Use Metro bundler running on port 8081 for Debug builds (with fast refresh), and
 - Prevents accidental commit of generated bundles
 
 ### Xcode Build Scripts
+
 - **Release configuration** must have build phase script:
   ```bash
   export NODE_BINARY=node
@@ -79,18 +98,24 @@ Use Metro bundler running on port 8081 for Debug builds (with fast refresh), and
 - Validates bundle generation happens automatically
 
 ### Documentation
+
 - **CLAUDE.md** warns about Metro requirement for Debug builds
 - **README** explains Debug vs Release build differences
 - **Justfile** provides clear commands for each workflow
 
 ### Code Review
+
 - **BLOCKING**: Changes to Xcode build scripts must be reviewed carefully
 - **BLOCKING**: Any attempt to commit main.jsbundle must be rejected
+- **BLOCKING**: Changes to `metro.config.js` custom resolver must follow the `context.resolveRequest()` pattern
 - Verify Metro configuration changes don't break Debug builds
 - Check that Release builds still work after Metro config changes
+- Ensure custom resolvers have defensive checks for `context.resolveRequest` existence
 
 ### Testing Checklist
+
 Before each release:
+
 1. **Debug build**: Verify Metro fast refresh works (`just dev`, `just macos`)
 2. **Release build**: Verify .app works offline (`just build-app`, test without Metro)
 3. **Bundle manually**: Verify manual bundling works (`just bundle-macos`)
@@ -99,18 +124,66 @@ Before each release:
 ### Common Issues
 
 **"No bundle URL present" in Debug**:
+
 - **Cause**: Metro not running
 - **Fix**: Run `npm start` or `just start` in separate terminal
 
 **Stale code in Debug build**:
+
 - **Cause**: Pre-bundled main.jsbundle exists and Metro down
 - **Fix**: Delete `macos/main.jsbundle`, restart Metro
 
 **Release build doesn't update**:
+
 - **Cause**: Xcode using cached bundle
 - **Fix**: Clean build folder (Cmd+Shift+K in Xcode)
 
+**"Maximum call stack size exceeded" on Metro startup**:
+
+- **Cause**: Custom resolver calling `metroResolver.resolve()` creating circular dependency
+- **Fix**: Use `context.resolveRequest(context, moduleName, platform)` instead
+- **Prevention**: Follow the custom resolver pattern documented above
+
+### Metro Custom Resolver Best Practices
+
+When implementing custom module resolution in `metro.config.js`:
+
+1. **Delegation Pattern**: Use `context.resolveRequest()` to delegate to Metro's default resolver
+
+   ```javascript
+   resolveRequest(context, moduleName, platform) {
+     // Custom logic for specific modules
+     if (moduleName === 'my-alias') {
+       return { type: 'sourceFile', filePath: '/path/to/file.js' };
+     }
+     // Delegate all other modules to Metro's default resolver
+     return context.resolveRequest(context, moduleName, platform);
+   }
+   ```
+
+2. **Defensive Checks**: Always verify `context.resolveRequest` exists before calling
+
+   ```javascript
+   if (!context.resolveRequest) {
+     throw new Error(
+       `Metro resolver: context.resolveRequest unavailable. ` +
+         `Check Metro version compatibility.`,
+     );
+   }
+   ```
+
+3. **Valid Resolution Objects**: Always return proper Resolution types
+   - `{type: 'sourceFile', filePath: string}` for JavaScript modules
+   - `{type: 'assetFiles', filePaths: string[]}` for assets
+   - `{type: 'empty'}` for empty modules
+   - **NEVER** return `null` or `undefined`
+
+4. **Avoid Circular Calls**: Never import and call `metro-resolver` directly
+   - ❌ Bad: `metroResolver.resolve(context, moduleName, platform)`
+   - ✅ Good: `context.resolveRequest(context, moduleName, platform)`
+
 ### Watchman Integration
+
 - `.watchmanconfig` optimizes file watching:
   - Ignores: `.git`, `node_modules`, `macos/Pods`, `macos/build`, `.metro-cache`
   - Prevents expensive recrawls on large directories
