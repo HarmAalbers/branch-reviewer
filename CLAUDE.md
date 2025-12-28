@@ -258,7 +258,13 @@ Tests use `__tests__/setup.ts` to mock:
    - Uploads coverage to Codecov
    - Validates macOS app builds successfully
 
-2. **dependency-review.yml**: Security scanning
+2. **codeql.yml**: CodeQL security scanning
+   - Runs on: All pushes, PRs, and weekly schedule (Mondays)
+   - Analyzes JavaScript/TypeScript for security vulnerabilities
+   - Uses `security-and-quality` query suite
+   - Results visible in GitHub Security tab
+
+3. **dependency-review.yml**: Dependency security scanning
    - Runs on: Pull requests to main
    - Blocks high/critical vulnerabilities
    - Reviews dependency changes

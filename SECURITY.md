@@ -38,28 +38,36 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 Branch Reviewer implements several security measures:
 
-### 1. Dependency Security
+### 1. CodeQL Code Scanning
+
+- **Automated Analysis**: CodeQL analyzes all JavaScript/TypeScript code for security vulnerabilities
+- **Continuous Monitoring**: Runs on every push, pull request, and weekly scheduled scans
+- **Query Suites**: Uses `security-and-quality` query suite for comprehensive analysis
+- **SARIF Reports**: Results uploaded to GitHub Security tab for tracking
+- **See**: `.github/workflows/codeql.yml`
+
+### 2. Dependency Security
 
 - **Automated Scanning**: GitHub Dependency Review workflow runs on all pull requests
 - **Blocking**: High/critical vulnerabilities block merges
 - **Updates**: Dependencies regularly reviewed and updated
-- See: `.github/workflows/dependency-review.yml`
+- **See**: `.github/workflows/dependency-review.yml`
 
-### 2. Code Quality Gates
+### 3. Code Quality Gates
 
 - **Test Coverage**: Minimum 50% coverage enforced (statements, functions, lines)
 - **Type Safety**: TypeScript strict mode with no `any` escapes in critical paths
 - **Pre-commit Hooks**: Automatic ESLint fixes, Prettier formatting, TypeScript validation
 - **CI/CD**: All code must pass lint, type check, tests, and build before merge
 
-### 3. Privacy-First Architecture
+### 4. Privacy-First Architecture
 
 - **Local-Only Operations**: No data sent to remote servers
 - **No Analytics**: No telemetry, tracking, or external network calls
 - **Git CLI Integration**: All Git operations via local CLI, nothing uploaded
 - **NSUserDefaults Storage**: User data stored locally via macOS native storage (user-controlled)
 
-### 4. Input Validation
+### 5. Input Validation
 
 - **Git Repository Paths**: Validated before processing
 - **File Path Sanitization**: Paths checked for traversal attempts

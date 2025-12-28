@@ -1,41 +1,38 @@
-# For most projects, this workflow file will not need changing; you simply need
-# to commit it to your repository.
+# CodeQL Security Scanning for Branch Reviewer
 #
-# You may wish to alter this file to override the set of languages analyzed,
-# or to provide custom queries or build logic.
+# This workflow performs static security analysis on TypeScript/JavaScript code
+# and GitHub Actions workflows. It runs on every push, pull request, and weekly
+# to catch new vulnerabilities even when code isn't changing.
 #
-# ******** NOTE ********
-# We have attempted to detect the languages in your repository. Please check
-# the `language` matrix defined below to confirm you have the correct set of
-# supported CodeQL languages.
-#
-name: "CodeQL Advanced"
+# Key customizations for this macOS-only React Native project:
+# - Runs on macos-15 (project is macOS-only per ADR-001)
+# - Analyzes JavaScript/TypeScript and GitHub Actions workflows
+# - Uses security-and-quality query suite for comprehensive coverage
+# - Installs Node.js dependencies for accurate analysis
+# - Uploads SARIF artifacts for review and debugging
+
+name: CodeQL Security Scanning
 
 on:
   push:
-    branches: [ "feature/prepare-for-public-release", "main" ]
+    branches: ['**']
   pull_request:
-    branches: [ "feature/prepare-for-public-release", "main" ]
+    branches: [main]
   schedule:
-    - cron: '22 19 * * 6'
+    # Run weekly on Mondays at 00:00 UTC to catch new vulnerabilities
+    - cron: '0 0 * * 1'
 
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
-    # Runner size impacts CodeQL analysis time. To learn more, please see:
-    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
-    #   - https://gh.io/supported-runners-and-hardware-resources
-    #   - https://gh.io/using-larger-runners (GitHub.com only)
-    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    runs-on: macos-15  # Must use macOS for this macOS-only project (ADR-001)
+    timeout-minutes: 15
     permissions:
-      # required for all workflows
+      # Required for all workflows
       security-events: write
-
-      # required to fetch internal or private CodeQL packs
+      # Required to fetch internal or private CodeQL packs
       packages: read
-
-      # only required for workflows in private repositories
+      # Only required for workflows in private repositories
       actions: read
       contents: read
 
@@ -43,61 +40,71 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - language: actions
-          build-mode: none
-        - language: javascript-typescript
-          build-mode: none
-        - language: ruby
-          build-mode: none
-        # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
-        # Use `c-cpp` to analyze code written in C, C++ or both
-        # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
-        # Use 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
-        # To learn more about changing the languages that are analyzed or customizing the build mode for your analysis,
-        # see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning.
-        # If you are analyzing a compiled language, you can modify the 'build-mode' for that language to customize how
-        # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
+          # Analyze GitHub Actions workflows for security issues
+          - language: actions
+            build-mode: none
+          # Analyze TypeScript/JavaScript React Native code
+          - language: javascript-typescript
+            build-mode: none
+        # Note: Ruby not included (not used in this project)
+        # CodeQL supports: actions, c-cpp, csharp, go, java-kotlin, javascript-typescript, python, ruby, rust, swift
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # Add any setup steps before running the `github/codeql-action/init` action.
-    # This includes steps like installing compilers or runtimes (`actions/setup-node`
-    # or others). This is typically only required for manual builds.
-    # - name: Setup runtime (example)
-    #   uses: actions/setup-example@v1
+      # Setup Node.js for JavaScript/TypeScript analysis
+      # Required to analyze dependencies and runtime behavior
+      - name: Setup Node.js
+        if: matrix.language == 'javascript-typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
+      # Install dependencies for accurate CodeQL analysis
+      # CodeQL needs to see node_modules to understand imports
+      - name: Install dependencies
+        if: matrix.language == 'javascript-typescript'
+        run: npm install
 
-        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
-        # queries: security-extended,security-and-quality
+      # Initialize CodeQL tools for scanning
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # Use comprehensive query suite for maximum security coverage
+          # Options: security-extended (default), security-and-quality (comprehensive)
+          queries: security-and-quality
 
-    # If the analyze step fails for one of the languages you are analyzing with
-    # "We were unable to automatically build your code", modify the matrix above
-    # to set the build mode to "manual" for that language. Then modify this step
-    # to build your code.
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - name: Run manual build steps
-      if: matrix.build-mode == 'manual'
-      shell: bash
-      run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
+      # Manual build step (not needed for this project)
+      # GitHub Actions and JavaScript/TypeScript use build-mode: none
+      - name: Run manual build steps
+        if: matrix.build-mode == 'manual'
+        shell: bash
+        run: |
+          echo 'Manual build not required for this project'
+          exit 1
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
-      with:
-        category: "/language:${{matrix.language}}"
+      # Perform CodeQL analysis and upload results
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: '/language:${{ matrix.language }}'
+          # Upload SARIF results to GitHub Security tab
+          upload: true
+          # Output directory for SARIF files
+          output: sarif-results
+          # Wait for GitHub to process results
+          wait-for-processing: true
+
+      # Upload SARIF files as artifacts for review and debugging
+      # Retained for 7 days, can be downloaded from Actions tab
+      - name: Upload SARIF results as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results
+          retention-days: 7
