@@ -409,27 +409,29 @@ function App() {
                 br,
                 repo.baseBranch,
               );
-              if (branchData) {
-                setRepos(prev =>
-                  prev.map(r =>
-                    r.id === id
-                      ? {
-                          ...r,
-                          branchCommits: {
-                            ...r.branchCommits,
-                            [br]: branchData.commits,
-                          },
-                          branchFiles: {
-                            ...r.branchFiles,
-                            [br]: branchData.files,
-                          },
-                        }
-                      : r,
-                  ),
-                );
-              }
+              setRepos(prev =>
+                prev.map(r =>
+                  r.id === id
+                    ? {
+                        ...r,
+                        branchCommits: {
+                          ...r.branchCommits,
+                          [br]: branchData.commits,
+                        },
+                        branchFiles: {
+                          ...r.branchFiles,
+                          [br]: branchData.files,
+                        },
+                      }
+                    : r,
+                ),
+              );
             } catch (e) {
               console.error('Failed to load branch data:', e);
+              Alert.alert(
+                'Failed to Load Branch',
+                `Could not load branch "${br}": ${e instanceof Error ? e.message : String(e)}\n\nPlease check that the repository is accessible.`,
+              );
             } finally {
               setIsLoading(false);
               setLoadingMessage('');
