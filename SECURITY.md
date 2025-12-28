@@ -116,7 +116,7 @@ If you're contributing code to Branch Reviewer:
 ### Required Security Practices
 
 1. **Never Add Network Calls**
-   - This is a local-only tool (see ADR-002, ADR-008)
+   - This is a local-only tool (see ADR-008)
    - No external APIs, analytics, or cloud services
    - Violations are BLOCKING per ADR
 

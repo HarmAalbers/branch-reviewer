@@ -283,8 +283,7 @@ Tests use `__tests__/setup.ts` to mock:
 just hooks-install
 
 # Or manually
-npm install
-npx husky init
+npm install  # This runs the "prepare": "husky" script automatically
 ```
 
 **What happens on commit**:

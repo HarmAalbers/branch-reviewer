@@ -20,7 +20,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+        timeout-minutes: 5
+
+      - name: Diagnose npm failure
+        if: failure()
+        run: |
+          echo "::error::npm installation failed. Diagnostics:"
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Cache directory: $(npm config get cache)"
+          ls -la node_modules/ 2>/dev/null || echo "node_modules not found"
 
       - name: Run ESLint
         run: npm run lint
@@ -38,7 +48,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+        timeout-minutes: 5
+
+      - name: Diagnose npm failure
+        if: failure()
+        run: |
+          echo "::error::npm installation failed. Diagnostics:"
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Cache directory: $(npm config get cache)"
+          ls -la node_modules/ 2>/dev/null || echo "node_modules not found"
 
       - name: Type check
         run: npx tsc --noEmit
@@ -56,18 +76,35 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+        timeout-minutes: 5
+
+      - name: Diagnose npm failure
+        if: failure()
+        run: |
+          echo "::error::npm installation failed. Diagnostics:"
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Cache directory: $(npm config get cache)"
+          ls -la node_modules/ 2>/dev/null || echo "node_modules not found"
 
       - name: Run tests with coverage
         run: npm test -- --coverage --coverageReporters=text --coverageReporters=lcov
 
       - name: Upload coverage to Codecov
+        id: codecov-upload
         uses: codecov/codecov-action@v4
         if: always()
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Warn on Codecov upload failure
+        if: always() && steps.codecov-upload.outcome == 'failure'
+        run: |
+          echo "::warning::Codecov upload failed. Coverage data not uploaded."
+          echo "::warning::This is not a CI blocker, but coverage tracking may be incomplete."
 
   build:
     name: Build macOS App
@@ -82,7 +119,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+        timeout-minutes: 5
+
+      - name: Diagnose npm failure
+        if: failure()
+        run: |
+          echo "::error::npm installation failed. Diagnostics:"
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Cache directory: $(npm config get cache)"
+          ls -la node_modules/ 2>/dev/null || echo "node_modules not found"
 
       - name: Install CocoaPods
         run: cd macos && pod install
@@ -91,6 +138,7 @@ jobs:
         run: npm run bundle:macos
 
       - name: Build Xcode project
+        id: xcode-build
         run: |
           xcodebuild -workspace macos/branchReviewer.xcworkspace \
             -scheme branchReviewer-macOS \
@@ -98,3 +146,29 @@ jobs:
             -arch arm64 \
             build \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Validate build artifacts
+        run: |
+          # Find the actual app bundle
+          BUILT_APP=$(find ~/Library/Developer/Xcode/DerivedData -name "branchReviewer.app" -type d -path "*/Release/*" | head -n 1)
+
+          if [ -z "$BUILT_APP" ]; then
+            echo "::error::Build failed: branchReviewer.app not found in DerivedData"
+            exit 1
+          fi
+
+          echo "Found app bundle at: $BUILT_APP"
+
+          # Validate app bundle structure
+          if [ ! -f "$BUILT_APP/Contents/Info.plist" ]; then
+            echo "::error::Invalid app bundle: Info.plist not found"
+            exit 1
+          fi
+
+          if [ ! -f "$BUILT_APP/Contents/MacOS/branchReviewer" ]; then
+            echo "::error::Invalid app bundle: main executable not found"
+            exit 1
+          fi
+
+          echo "✓ App bundle structure validated"
+          ls -lh "$BUILT_APP/Contents/MacOS/"
