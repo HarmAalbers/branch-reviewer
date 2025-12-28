@@ -3,11 +3,11 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "macos": "react-native-macos run-macos",
+    "macos": "npx react-native-macos run-macos",
     "lint": "eslint .",
-    "start": "react-native-macos start",
+    "start": "npx react-native-macos start",
     "test": "jest",
-    "bundle:macos": "react-native-macos bundle --entry-file index.js --platform macos --dev false --bundle-output macos/main.jsbundle --assets-dest macos",
+    "bundle:macos": "npx react-native-macos bundle --entry-file index.js --platform macos --dev false --bundle-output macos/main.jsbundle --assets-dest macos",
     "prepare": "husky"
   },
   "dependencies": {
