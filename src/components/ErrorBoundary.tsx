@@ -11,6 +11,9 @@ interface State {
   hasError: boolean;
   error?: Error;
   errorInfo?: ErrorInfo;
+  errorCount: number;
+  lastErrorTimestamp?: number;
+  errorId?: string;
 }
 
 /**
@@ -20,22 +23,67 @@ interface State {
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = {hasError: false};
+    this.state = {
+      hasError: false,
+      errorCount: 0,
+    };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return {hasError: true, error};
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    const errorId = `EB-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    return {
+      hasError: true,
+      error,
+      errorId,
+      lastErrorTimestamp: Date.now(),
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const componentName = this.props.componentName || 'Component';
-    console.error(`ErrorBoundary caught error in ${componentName}:`, error, errorInfo);
 
-    this.setState({errorInfo});
+    try {
+      // Log error with full context
+      console.error(`[${this.state.errorId}] ErrorBoundary caught error in ${componentName}:`, {
+        error: {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+        },
+        componentStack: errorInfo.componentStack,
+        timestamp: new Date().toISOString(),
+      });
+
+      this.setState({errorInfo});
+    } catch (stateError) {
+      // setState failed - log but don't throw to avoid cascading errors
+      console.error('ErrorBoundary failed to update state:', stateError);
+    }
   }
 
   handleReset = () => {
-    this.setState({hasError: false, error: undefined, errorInfo: undefined});
+    const now = Date.now();
+    const timeSinceLastError = this.state.lastErrorTimestamp
+      ? now - this.state.lastErrorTimestamp
+      : Infinity;
+
+    // If errors are happening rapidly (within 5 seconds), increment counter
+    const newErrorCount = timeSinceLastError < 5000
+      ? this.state.errorCount + 1
+      : 0;
+
+    if (newErrorCount >= 3) {
+      // Too many rapid errors - permanent failure
+      console.error('ErrorBoundary: Too many rapid errors, preventing infinite loop');
+      return;
+    }
+
+    this.setState({
+      hasError: false,
+      error: undefined,
+      errorInfo: undefined,
+      errorCount: newErrorCount,
+    });
   };
 
   render() {
@@ -44,7 +92,30 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      return <ErrorFallback error={this.state.error} onReset={this.handleReset} />;
+      try {
+        return (
+          <ErrorFallback
+            error={this.state.error}
+            errorId={this.state.errorId}
+            errorCount={this.state.errorCount}
+            onReset={this.handleReset}
+          />
+        );
+      } catch (fallbackError) {
+        // Last-resort minimal fallback if ErrorFallback itself crashes
+        console.error('ErrorFallback itself crashed:', fallbackError);
+        return (
+          <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20}}>
+            <Text style={{color: '#cf222e', fontSize: 16, textAlign: 'center', marginBottom: 10}}>
+              Critical Error
+            </Text>
+            <Text style={{color: '#333', fontSize: 14, textAlign: 'center'}}>
+              The error recovery system encountered an error.{'\n'}
+              Please restart the application.
+            </Text>
+          </View>
+        );
+      }
     }
 
     return this.props.children;
@@ -52,13 +123,41 @@ export class ErrorBoundary extends Component<Props, State> {
 }
 
 /**
+ * Sanitizes error message to remove sensitive information
+ */
+function sanitizeErrorMessage(error?: Error): string {
+  if (!error?.message) {
+    return 'An unexpected error occurred';
+  }
+
+  let message = error.message;
+
+  // Remove file paths
+  message = message.replace(/\/[\w\/\-_.]+/g, '[path]');
+
+  // Remove potential tokens/keys (long alphanumeric strings)
+  message = message.replace(/[a-zA-Z0-9]{32,}/g, '[redacted]');
+
+  // Limit length to prevent UI overflow
+  if (message.length > 200) {
+    message = message.substring(0, 197) + '...';
+  }
+
+  return message;
+}
+
+/**
  * Default fallback UI shown when error boundary catches an error
  */
 function ErrorFallback({
   error,
+  errorId,
+  errorCount,
   onReset,
 }: {
   error?: Error;
+  errorId?: string;
+  errorCount: number;
   onReset: () => void;
 }) {
   const isDark = useColorScheme() === 'dark';
@@ -88,29 +187,39 @@ function ErrorFallback({
           Something went wrong
         </Text>
 
-        {error?.message && (
-          <Text style={[styles.message, {color: colors.fg}]}>
-            {error.message}
+        <Text style={[styles.message, {color: colors.fg}]}>
+          {sanitizeErrorMessage(error)}
+        </Text>
+
+        {errorId && (
+          <Text style={[styles.errorId, {color: colors.muted}]}>
+            Error ID: {errorId}
           </Text>
         )}
 
         <Text style={[styles.hint, {color: colors.muted}]}>
-          This error has been logged. Try resetting this component or restarting the app.
+          {errorCount >= 2
+            ? 'This component is experiencing repeated errors. Please restart the app.'
+            : 'This error has been logged. Try resetting this component or restart the app if the issue persists.'}
         </Text>
 
-        <TouchableOpacity
-          onPress={onReset}
-          style={({pressed}) => [
-            styles.button,
-            {
-              backgroundColor: pressed ? colors.buttonPressed : colors.buttonBg,
-            },
-          ]}
-        >
-          <Text style={[styles.buttonText, {color: colors.buttonText}]}>
-            Try Again
+        {errorCount < 3 ? (
+          <TouchableOpacity
+            onPress={onReset}
+            style={[
+              styles.button,
+              {backgroundColor: colors.buttonBg},
+            ]}
+          >
+            <Text style={[styles.buttonText, {color: colors.buttonText}]}>
+              Try Again
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={[styles.permanentError, {color: colors.danger}]}>
+            Component recovery failed. Please restart the app.
           </Text>
-        </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -141,6 +250,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Menlo, monospace',
     lineHeight: 20,
   },
+  errorId: {
+    fontSize: 11,
+    textAlign: 'center',
+    fontFamily: 'Menlo, monospace',
+    marginTop: 4,
+  },
   hint: {
     fontSize: 13,
     textAlign: 'center',
@@ -156,6 +271,12 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  permanentError: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
+    marginTop: 8,
   },
 });
 

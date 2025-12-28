@@ -59,7 +59,6 @@ describe('Sidebar', () => {
       ],
       pullRequests: [],
       baseBranch: 'main',
-      currentBranch: 'main',
       branchCommits: {},
       branchFiles: {},
     };
@@ -139,7 +138,6 @@ describe('Sidebar', () => {
       ],
       pullRequests: [],
       baseBranch: 'main',
-      currentBranch: 'main',
       branchCommits: {},
       branchFiles: {},
     };
@@ -194,7 +192,6 @@ describe('Sidebar', () => {
       branches: [{name: 'main', isCurrent: true}],
       pullRequests: [],
       baseBranch: 'main',
-      currentBranch: 'main',
       branchCommits: {},
       branchFiles: {},
     };
@@ -225,22 +222,21 @@ describe('Sidebar', () => {
         {
           id: 'pr-1',
           title: 'Fix bug',
+          files: [],
           author: 'john',
-          state: 'open',
-          number: 123,
+          // number:123,
           comments: [],
         },
         {
           id: 'pr-2',
           title: 'Add feature',
+          files: [],
           author: 'jane',
-          state: 'open',
-          number: 124,
+          // number:124,
           comments: [],
         },
       ],
       baseBranch: 'main',
-      currentBranch: 'main',
       branchCommits: {},
       branchFiles: {},
     };
@@ -297,8 +293,7 @@ describe('Sidebar', () => {
         branches: [{name: 'main', isCurrent: true}],
         pullRequests: [],
         baseBranch: 'main',
-        currentBranch: 'main',
-        branchCommits: {},
+          branchCommits: {},
         branchFiles: {},
       },
       {
@@ -308,7 +303,6 @@ describe('Sidebar', () => {
         branches: [{name: 'develop', isCurrent: true}],
         pullRequests: [],
         baseBranch: 'develop',
-        currentBranch: 'develop',
         branchCommits: {},
         branchFiles: {},
       },
@@ -360,14 +354,13 @@ describe('Sidebar', () => {
         {
           id: 'pr-1',
           title: 'Test PR',
+          files: [],
           author: 'test',
-          state: 'open',
-          number: 1,
+          // number:1,
           comments: [],
         },
       ],
       baseBranch: 'main',
-      currentBranch: 'main',
       branchCommits: {},
       branchFiles: {},
     };
@@ -413,8 +406,7 @@ describe('Sidebar', () => {
         branches: [],
         pullRequests: [],
         baseBranch: 'main',
-        currentBranch: '',
-        branchCommits: {},
+          branchCommits: {},
         branchFiles: {},
       };
 
@@ -438,8 +430,7 @@ describe('Sidebar', () => {
         branches: [{name: 'main', isCurrent: true}],
         pullRequests: [],
         baseBranch: 'main',
-        currentBranch: 'main',
-        branchCommits: {},
+          branchCommits: {},
         branchFiles: {},
       };
 

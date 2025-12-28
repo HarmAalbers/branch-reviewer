@@ -8,12 +8,12 @@ import {Text} from 'react-native';
 import {ErrorBoundary} from '../../src/components/ErrorBoundary';
 
 // Component that throws an error
-function BrokenComponent() {
+function BrokenComponent(): React.ReactElement {
   throw new Error('Component crashed!');
 }
 
 // Component that works
-function WorkingComponent() {
+function WorkingComponent(): React.ReactElement {
   return <Text>Working fine</Text>;
 }
 
@@ -95,7 +95,7 @@ describe('ErrorBoundary', () => {
     expect(getByText('Custom error UI')).toBeTruthy();
   });
 
-  it('logs error to console with component name', () => {
+  it('logs error to console with component name and context', () => {
     const consoleErrorSpy = console.error as jest.Mock;
     consoleErrorSpy.mockClear();
 
@@ -105,10 +105,16 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('ErrorBoundary caught error in TestComponent'),
-      expect.any(Error),
-      expect.anything()
+    // Verify error logged with error ID and structured context
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    const errorLogCall = consoleErrorSpy.mock.calls.find(call =>
+      call[0]?.includes('ErrorBoundary caught error in TestComponent')
     );
+
+    expect(errorLogCall).toBeDefined();
+    expect(errorLogCall[0]).toMatch(/\[EB-\d+-[A-Z0-9]+\]/); // Error ID format
+    expect(errorLogCall[1]).toHaveProperty('error');
+    expect(errorLogCall[1]).toHaveProperty('componentStack');
+    expect(errorLogCall[1]).toHaveProperty('timestamp');
   });
 });
