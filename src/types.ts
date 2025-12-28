@@ -1,3 +1,20 @@
+export type ReviewComment = {
+  id: string;
+  body: string;
+  createdAt: string; // ISO string
+  updatedAt?: string; // ISO string, set when edited
+  isResolved?: boolean;
+  parentId?: string; // for threaded replies
+};
+
+export type LineComments = {
+  repoId: string;
+  branchName: string;
+  filePath: string;
+  lineNumber: number; // 1-based line number in the diff
+  comments: ReviewComment[];
+};
+
 export type Comment = {
   id: string;
   author: string;
@@ -42,4 +59,5 @@ export type Repo = {
   branches?: Branch[]; // optional list of local branches
   branchCommits?: Record<string, Commit[]>; // commits since base per branch
   branchFiles?: Record<string, FileChange[]>; // changed files per branch
+  reviewComments?: LineComments[]; // inline review comments on code
 };

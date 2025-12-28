@@ -19,6 +19,7 @@ export type SidebarProps = {
   onSelectRepo: (repoId: string) => void;
   onSelectPr: (repoId: string, prId: string) => void;
   onSelectBranch: (repoId: string, branchName: string) => void;
+  onAddRepo: () => void;
 };
 
 export function Sidebar({
@@ -31,6 +32,7 @@ export function Sidebar({
   onSelectRepo,
   onSelectPr,
   onSelectBranch,
+  onAddRepo,
 }: SidebarProps) {
   const isDark = useColorScheme() === 'dark';
   const colors = getColors(isDark);
@@ -42,6 +44,24 @@ export function Sidebar({
         { backgroundColor: colors.bg, borderRightColor: colors.border },
       ]}
     >
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.fg }]}>
+          Repositories
+        </Text>
+        <Pressable
+          onPress={onAddRepo}
+          style={({ pressed }) => [
+            styles.addButton,
+            {
+              backgroundColor: pressed ? colors.rowPressed : colors.selected,
+            },
+          ]}
+        >
+          <Text style={{ color: colors.fg, fontSize: 18, fontWeight: '600' }}>
+            +
+          </Text>
+        </Pressable>
+      </View>
       <ScrollView>
         {repos.map(repo => {
           const isCollapsed = !!collapsed[repo.id];
@@ -107,14 +127,20 @@ export function Sidebar({
                                 styles.branchDot,
                                 {
                                   backgroundColor: isCurrent
-                                    ? '#0969da'
-                                    : '#8b949e',
+                                    ? colors.currentDot
+                                    : colors.muted,
                                 },
                               ]}
                             />
                             <Text
                               numberOfLines={1}
-                              style={[styles.branchName, { color: colors.fg }]}
+                              style={[
+                                styles.branchName,
+                                {
+                                  color: colors.fg,
+                                  fontWeight: selected ? '600' : '400',
+                                },
+                              ]}
                             >
                               {br.name}
                             </Text>
@@ -125,7 +151,7 @@ export function Sidebar({
                                   { color: colors.muted },
                                 ]}
                               >
-                                current
+                                CURRENT
                               </Text>
                             ) : null}
                           </Pressable>
@@ -184,52 +210,78 @@ export function Sidebar({
 
 function getColors(isDark: boolean) {
   return {
-    bg: isDark ? '#0d1117' : '#f6f8fa',
-    fg: isDark ? '#c9d1d9' : '#24292f',
-    muted: isDark ? '#8b949e' : '#57606a',
-    border: isDark ? '#30363d' : '#d0d7de',
-    selected: isDark ? 'rgba(56,139,253,0.24)' : '#ddf4ff',
-    rowPressed: isDark ? 'rgba(110,118,129,0.1)' : 'rgba(27,31,36,0.06)',
+    bg: isDark ? '#252526' : '#f3f3f3',
+    fg: isDark ? '#cccccc' : '#333333',
+    muted: isDark ? '#858585' : '#6c6c6c',
+    border: isDark ? '#3e3e3e' : '#e5e5e5',
+    selected: isDark ? '#37373d' : '#e8e8e8',
+    rowPressed: isDark ? '#2a2d2e' : '#e0e0e0',
+    currentDot: isDark ? '#4fc1ff' : '#007acc',
   };
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: 260,
-    borderRightWidth: StyleSheet.hairlineWidth,
+    width: 240,
+    borderRightWidth: 1,
   },
-  repoHeader: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  headerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  addButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  repoHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   repoChev: {
     width: 12,
     textAlign: 'center',
+    fontSize: 11,
   },
   repoName: {
     fontWeight: '600',
+    fontSize: 13,
   },
   section: {
-    paddingHorizontal: 8,
-    paddingBottom: 4,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
   sectionTitle: {
     fontSize: 11,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
+    fontWeight: '600',
     marginLeft: 4,
-    marginTop: 2,
-    marginBottom: 4,
+    marginTop: 8,
+    marginBottom: 6,
   },
   branchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    gap: 10,
+    borderRadius: 6,
+    marginHorizontal: 8,
   },
   branchDot: {
     width: 6,
@@ -242,14 +294,17 @@ const styles = StyleSheet.create({
   },
   currentBadge: {
     marginLeft: 6,
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: '600',
   },
   prRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    gap: 8,
+    gap: 10,
+    borderRadius: 6,
+    marginHorizontal: 8,
   },
   prDot: {
     width: 8,
@@ -263,7 +318,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   prAuthor: {
-    fontSize: 12,
+    fontSize: 11,
   },
 });
 
