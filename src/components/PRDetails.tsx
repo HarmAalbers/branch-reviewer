@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -6,18 +6,17 @@ import {
   TextInput,
   View,
   Pressable,
-  useColorScheme,
 } from 'react-native';
-import type { PullRequest } from '../types';
+import type {PullRequest} from '../types';
+import {useTheme, type ThemeColors} from '../hooks/useTheme';
 
 export type PRDetailsProps = {
   pr?: PullRequest;
   onAddComment?: (body: string) => void;
 };
 
-export function PRDetails({ pr, onAddComment }: PRDetailsProps) {
-  const isDark = useColorScheme() === 'dark';
-  const colors = getColors(isDark);
+export function PRDetails({pr, onAddComment}: PRDetailsProps) {
+  const {colors} = useTheme();
   const [comment, setComment] = useState('');
 
   // Hooks must be called unconditionally in the same order on every render.
@@ -169,29 +168,10 @@ export function PRDetails({ pr, onAddComment }: PRDetailsProps) {
 
 const monospaceFont = 'Menlo, monospace';
 
-function getLineColor(line: string, c: ReturnType<typeof getColors>) {
+function getLineColor(line: string, c: ThemeColors) {
   if (line.startsWith('+')) return c.add;
   if (line.startsWith('-')) return c.del;
   return c.code;
-}
-
-function getColors(isDark: boolean) {
-  return {
-    bg: isDark ? '#0b0f14' : '#ffffff',
-    fg: isDark ? '#c9d1d9' : '#24292f',
-    muted: isDark ? '#8b949e' : '#57606a',
-    border: isDark ? '#30363d' : '#d0d7de',
-    codeBg: isDark ? '#161b22' : '#f6f8fa',
-    code: isDark ? '#c9d1d9' : '#24292f',
-    add: '#3fb950',
-    del: '#f85149',
-    inputBg: isDark ? '#0d1117' : '#ffffff',
-    placeholder: isDark ? '#8b949e' : '#6e7781',
-    buttonBg: isDark ? '#161b22' : '#f6f8fa',
-    buttonPressed: isDark ? '#0d1117' : '#eaeef2',
-    buttonPrimary: '#2da44e',
-    buttonPrimaryPressed: '#2c974b',
-  };
 }
 
 const styles = StyleSheet.create({

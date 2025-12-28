@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  useColorScheme,
 } from 'react-native';
-import type { ReviewComment } from '../types';
+import type {ReviewComment} from '../types';
+import {useTheme, type ThemeColors} from '../hooks/useTheme';
 
 export type CommentThreadProps = {
   comments: ReviewComment[];
@@ -26,8 +26,7 @@ export function CommentThread({
   onToggleResolve,
   isResolved,
 }: CommentThreadProps) {
-  const isDark = useColorScheme() === 'dark';
-  const c = getColors(isDark);
+  const {colors: c} = useTheme();
 
   const [isAddingComment, setIsAddingComment] = useState(comments.length === 0);
   const [newCommentBody, setNewCommentBody] = useState('');
@@ -206,7 +205,7 @@ type CommentItemProps = {
   onStartEdit: () => void;
   onDelete: () => void;
   onReply: () => void;
-  colors: ReturnType<typeof getColors>;
+  colors: ThemeColors;
   isReply?: boolean;
 };
 
@@ -291,24 +290,6 @@ function CommentItem({
   );
 }
 
-function getColors(isDark: boolean) {
-  return {
-    threadBg: isDark ? '#2d2d30' : '#f6f8fa',
-    bg: isDark ? '#1e1e1e' : '#ffffff',
-    fg: isDark ? '#cccccc' : '#24292f',
-    muted: isDark ? '#858585' : '#57606a',
-    border: isDark ? '#3e3e3e' : '#d0d7de',
-    resolvedBorder: isDark ? '#2ea043' : '#1a7f37',
-    resolvedBadgeBg: isDark ? '#2ea04333' : '#dafbe1',
-    resolvedText: isDark ? '#3fb950' : '#1a7f37',
-    inputBg: isDark ? '#1e1e1e' : '#ffffff',
-    buttonPrimary: isDark ? '#238636' : '#2da44e',
-    buttonSecondary: isDark ? '#3e3e3e' : '#f6f8fa',
-    link: isDark ? '#58a6ff' : '#0969da',
-    danger: isDark ? '#f85149' : '#cf222e',
-  };
-}
-
 const styles = StyleSheet.create({
   container: {
     borderWidth: 1,
@@ -385,4 +366,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CommentThread;
+export default React.memo(CommentThread);

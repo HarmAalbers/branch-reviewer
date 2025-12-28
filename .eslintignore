@@ -1,0 +1,4 @@
+node_modules/
+macos/
+.metro-cache/
+coverage/

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Branch Reviewer is a macOS-only React Native application (React Native macOS 0.73) that allows users to review Git branches locally. It displays commits, changed files, and diffs for local Git repositories without uploading anything to remote servers.
+Branch Reviewer is a macOS-only React Native application (React Native macOS 0.78) that allows users to review Git branches locally. It displays commits, changed files, and diffs for local Git repositories without uploading anything to remote servers.
 
 **Target Platform:** macOS 15+ on Apple Silicon (arm64) only
 **Bundle ID:** com.example.branchreviewer
