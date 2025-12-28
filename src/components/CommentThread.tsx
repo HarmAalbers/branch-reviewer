@@ -385,4 +385,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CommentThread;
+export default React.memo(CommentThread);

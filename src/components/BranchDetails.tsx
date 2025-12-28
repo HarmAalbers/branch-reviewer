@@ -319,4 +319,18 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BranchDetails;
+export default React.memo(BranchDetails, (prev, next) => {
+  // Custom comparison to avoid re-renders when props haven't meaningfully changed
+  return (
+    prev.branchName === next.branchName &&
+    prev.baseBranch === next.baseBranch &&
+    prev.commits === next.commits &&
+    prev.files === next.files &&
+    prev.repoId === next.repoId &&
+    prev.lineComments === next.lineComments &&
+    prev.onAddComment === next.onAddComment &&
+    prev.onEditComment === next.onEditComment &&
+    prev.onDeleteComment === next.onDeleteComment &&
+    prev.onToggleResolve === next.onToggleResolve
+  );
+});
