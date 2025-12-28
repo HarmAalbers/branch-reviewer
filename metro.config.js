@@ -1,6 +1,5 @@
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
-const metroResolver = require('metro-resolver');
 
 const defaultConfig = getDefaultConfig(__dirname);
 // Remove unknown/deprecated options that trigger Metro validation warnings
@@ -39,7 +38,15 @@ const config = {
       ) {
         return { type: 'sourceFile', filePath: path.join(rnPath, 'index.js') };
       }
-      return metroResolver.resolve(context, moduleName, platform);
+      // Delegate to Metro's default resolver
+      // context.resolveRequest points to Metro's internal resolve function
+      if (!context.resolveRequest) {
+        throw new Error(
+          `Metro resolver: context.resolveRequest unavailable for "${moduleName}". ` +
+            `Check Metro version compatibility.`,
+        );
+      }
+      return context.resolveRequest(context, moduleName, platform);
     },
   },
 };
