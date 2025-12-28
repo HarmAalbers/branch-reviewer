@@ -62,7 +62,9 @@ describe('storage', () => {
       expect(result).toBeUndefined();
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Failed to load persisted state',
-        expect.any(Error)
+        expect.objectContaining({
+          message: expect.stringContaining('JSON'),
+        })
       );
 
       consoleWarnSpy.mockRestore();
@@ -79,7 +81,9 @@ describe('storage', () => {
       expect(result).toBeUndefined();
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Failed to load persisted state',
-        expect.any(Error)
+        expect.objectContaining({
+          message: 'Settings API error',
+        })
       );
 
       consoleWarnSpy.mockRestore();
@@ -154,7 +158,9 @@ describe('storage', () => {
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Failed to save state',
-        expect.any(Error)
+        expect.objectContaining({
+          message: 'NSUserDefaults quota exceeded',
+        })
       );
 
       consoleWarnSpy.mockRestore();

@@ -10,6 +10,7 @@ import {
 import Sidebar from './src/components/Sidebar';
 import PRDetails from './src/components/PRDetails';
 import BranchDetails from './src/components/BranchDetails';
+import {ErrorBoundary} from './src/components/ErrorBoundary';
 import type {
   Repo,
   PullRequest,
@@ -371,8 +372,9 @@ function App() {
           </View>
         </View>
       )}
-      <Sidebar
-        repos={repos}
+      <ErrorBoundary componentName="Sidebar">
+        <Sidebar
+          repos={repos}
         selectedRepoId={selectedRepoId}
         selectedPrId={selectedPrId}
         selectedBranchName={selectedBranchName}
@@ -439,8 +441,10 @@ function App() {
           }
         }}
         onAddRepo={addLocalRepo}
-      />
-      <View style={styles.main}>
+        />
+      </ErrorBoundary>
+      <ErrorBoundary componentName="BranchDetails">
+        <View style={styles.main}>
         {selectedPr ? (
           <PRDetails pr={selectedPr} onAddComment={addComment} />
         ) : (
@@ -465,7 +469,8 @@ function App() {
             onToggleResolve={toggleResolveLineComment}
           />
         )}
-      </View>
+        </View>
+      </ErrorBoundary>
     </View>
   );
 }

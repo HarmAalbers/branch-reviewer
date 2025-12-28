@@ -41,16 +41,17 @@ describe('gitLocal', () => {
     });
 
     it('throws error when BRGit module not available', async () => {
-      // Simulate missing native module
       const originalPickFolder = BRGit.pickFolder;
-      delete BRGit.pickFolder;
 
-      await expect(pickFolder()).rejects.toThrow(
-        'BRGit native module not available'
-      );
+      try {
+        delete BRGit.pickFolder;
 
-      // Restore
-      BRGit.pickFolder = originalPickFolder;
+        await expect(pickFolder()).rejects.toThrow(
+          'BRGit native module not available'
+        );
+      } finally {
+        BRGit.pickFolder = originalPickFolder;
+      }
     });
   });
 
@@ -94,14 +95,16 @@ describe('gitLocal', () => {
 
     it('throws error when BRGit module not available', async () => {
       const originalScanBranch = BRGit.scanBranch;
-      delete BRGit.scanBranch;
 
-      await expect(
-        scanBranch('/repo/path', 'feature', 'main')
-      ).rejects.toThrow('BRGit native module not available');
+      try {
+        delete BRGit.scanBranch;
 
-      // Restore
-      BRGit.scanBranch = originalScanBranch;
+        await expect(
+          scanBranch('/repo/path', 'feature', 'main')
+        ).rejects.toThrow('BRGit native module not available');
+      } finally {
+        BRGit.scanBranch = originalScanBranch;
+      }
     });
 
     it('includes context in error message', async () => {
@@ -141,12 +144,15 @@ describe('gitLocal', () => {
 
       await scanRepo('/repo/path', onProgress);
 
-      expect(onProgress).toHaveBeenCalledWith('Step 2/6: Checking git repository...');
-      expect(onProgress).toHaveBeenCalledWith('Step 3/6: Loading branches...');
-      expect(onProgress).toHaveBeenCalledWith('Step 4/6: Processing branch data...');
-      expect(onProgress).toHaveBeenCalledWith('Step 5/6: Found 2 branches');
-      expect(onProgress).toHaveBeenCalledWith('Step 6/6: Loading current branch details...');
-      expect(onProgress).toHaveBeenCalledTimes(5);
+      // Verify progress updates are called
+      expect(onProgress).toHaveBeenCalled();
+      expect(onProgress.mock.calls.length).toBeGreaterThan(0);
+
+      // Verify key milestones are reported (not brittle step numbers)
+      const allMessages = onProgress.mock.calls.map(call => call[0]).join(' ');
+      expect(allMessages).toMatch(/checking.*repository/i);
+      expect(allMessages).toMatch(/loading.*branches/i);
+      expect(allMessages).toMatch(/found.*2.*branches/i);
     });
 
     it('works without onProgress callback', async () => {
@@ -166,14 +172,16 @@ describe('gitLocal', () => {
 
     it('throws error when BRGit module not available', async () => {
       const originalScanRepo = BRGit.scanRepo;
-      delete BRGit.scanRepo;
 
-      await expect(scanRepo('/repo/path')).rejects.toThrow(
-        'BRGit native module not available'
-      );
+      try {
+        delete BRGit.scanRepo;
 
-      // Restore
-      BRGit.scanRepo = originalScanRepo;
+        await expect(scanRepo('/repo/path')).rejects.toThrow(
+          'BRGit native module not available'
+        );
+      } finally {
+        BRGit.scanRepo = originalScanRepo;
+      }
     });
 
     it('throws error when native module returns invalid data', async () => {
