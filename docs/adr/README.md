@@ -4,32 +4,37 @@ This directory contains Architecture Decision Records for the Branch Reviewer pr
 
 ## ADR Index
 
-| ADR | Title | Status |
-|-----|-------|--------|
-| [ADR-001](ADR-001-macos-only-platform.md) | macOS-Only Platform with React Native macOS 0.73 | Approved |
-| [ADR-002](ADR-002-native-git-cli-integration.md) | Native Git CLI Integration via BRGit Module | Approved |
-| [ADR-003](ADR-003-nsuserdefaults-persistence.md) | NSUserDefaults for State Persistence | Approved |
-| [ADR-004](ADR-004-centralized-state-management.md) | Centralized State Management in App.tsx | Approved |
-| [ADR-005](ADR-005-lazy-loading-branch-data.md) | Lazy Loading Strategy for Branch Data | Approved |
-| [ADR-006](ADR-006-props-based-components.md) | Props-Based Presentational Components | Approved |
-| [ADR-007](ADR-007-metro-xcode-build-pipeline.md) | Metro + Xcode Dual Build Pipeline | Approved |
-| [ADR-008](ADR-008-local-only-review-comments.md) | Local-Only Inline Review Comments | Approved |
+| ADR                                                | Title                                                            | Status   | Last Updated |
+| -------------------------------------------------- | ---------------------------------------------------------------- | -------- | ------------ |
+| [ADR-001](ADR-001-macos-only-platform.md)          | macOS-Only Platform with React Native macOS 0.78                 | Approved | 2025-12-28   |
+| [ADR-002](ADR-002-native-git-cli-integration.md)   | Native Git CLI Integration via BRGit Module                      | Approved | 2025-12-28   |
+| [ADR-003](ADR-003-nsuserdefaults-persistence.md)   | NSUserDefaults for State Persistence                             | Approved | 2025-12-28   |
+| [ADR-004](ADR-004-centralized-state-management.md) | Centralized State Management in App.tsx                          | Approved | 2025-12-28   |
+| [ADR-005](ADR-005-lazy-loading-branch-data.md)     | Lazy Loading Strategy for Branch Data                            | Approved | 2025-12-28   |
+| [ADR-006](ADR-006-props-based-components.md)       | Props-Based Presentational Components                            | Approved | 2025-12-28   |
+| [ADR-007](ADR-007-metro-xcode-build-pipeline.md)   | Metro + Xcode Dual Build Pipeline                                | Approved | 2025-12-28   |
+| [ADR-008](ADR-008-local-only-review-comments.md)   | Local-Only Inline Review Comments                                | Approved | 2025-12-28   |
+| [ADR-009](ADR-009-testing-strategy.md)             | Comprehensive Testing Strategy with Jest + React Testing Library | Approved | 2025-12-28   |
 
 ## ADR Categories
 
 ### Tier 1: Foundation (Critical - Affects ALL Code)
-- **ADR-001**: Platform choice (macOS-only)
+
+- **ADR-001**: Platform choice (macOS-only, React Native 0.78)
 - **ADR-002**: Git integration approach (CLI-based)
 - **ADR-003**: State persistence (NSUserDefaults)
 
 ### Tier 2: Application Architecture
-- **ADR-004**: State management pattern (centralized)
-- **ADR-005**: Performance strategy (lazy loading)
-- **ADR-006**: Component architecture (props-based)
 
-### Tier 3: Development Process
+- **ADR-004**: State management pattern (centralized, useReducer)
+- **ADR-005**: Performance strategy (lazy loading)
+- **ADR-006**: Component architecture (props-based, React.memo)
+
+### Tier 3: Development Process & Quality
+
 - **ADR-007**: Build pipeline (Metro + Xcode)
 - **ADR-008**: Feature implementation (local review comments)
+- **ADR-009**: Testing strategy (79% coverage, CI/CD)
 
 ## ADR Template Format
 
@@ -39,26 +44,33 @@ Branch Reviewer uses a **Strict Enforcement Format** optimized for AI-driven cod
 # ADR-[NUMBER]: [TITLE]
 
 ## Status
+
 [Proposed | Approved | Deprecated | Superseded by ADR-XXX]
 
 ## Context
+
 [2-3 sentences: Why this decision is needed, what problem it solves]
 
 ## Decision
+
 [Clear statement of what is decided]
 
 ## Allowed
+
 - [Specific permitted patterns/tools/approaches]
 - [Explicit, enumerable items that comply with this decision]
 
 ## Prohibited
+
 - [Specific forbidden patterns/tools/approaches]
 - [These are BLOCKING violations - code cannot merge if it violates these]
 
 ## Consequences
+
 - [Direct implications - both positive and negative outcomes]
 
 ## Enforcement
+
 [How this ADR is verified - automated checks, code review requirements, etc.]
 ```
 

@@ -1,6 +1,17 @@
 # Branch Reviewer — macOS (React Native macOS)
 
-This repo is now macOS‑only. It uses React Native macOS 0.73 to produce a native Cocoa app for Apple Silicon (arm64) on the latest macOS.
+A production-ready macOS application for reviewing Git branches locally. Built with React Native macOS 0.78, React 19, and modern testing infrastructure.
+
+**Status**: ✅ Production-ready with 79% test coverage, CI/CD automation, and comprehensive error handling.
+
+**Tech Stack**:
+
+- React 19.2.3 + React Native macOS 0.78.6
+- TypeScript 5.6.3 (strict mode)
+- Jest 30.2.0 + React Testing Library
+- 98 tests, 79.49% coverage
+- GitHub Actions CI/CD
+- Pre-commit hooks (Husky + lint-staged)
 
 ## Quickstart (run locally)
 
@@ -30,6 +41,70 @@ This repo is now macOS‑only. It uses React Native macOS 0.73 to produce a nati
      ```
      Tip: You can also open `macos/branchReviewer.xcworkspace` in Xcode and press Run.
 
+## Testing
+
+The project has comprehensive test coverage with automated quality gates.
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage report
+npm test -- --coverage
+
+# Run tests in watch mode
+npm test -- --watch
+
+# Run specific test
+npm test __tests__/components/Sidebar.test.tsx
+```
+
+**Test Coverage** (as of 2025-12-28):
+
+- Overall: 79.49% (exceeds 50% threshold)
+- Branches: 59.32% (exceeds 40% threshold)
+- Functions: 76.42% (exceeds 50% threshold)
+- 98 comprehensive tests across 9 test files
+
+**100% Coverage Modules**:
+
+- gitLocal.ts (native module integration)
+- storage.ts (NSUserDefaults persistence)
+- Sidebar.tsx (repository/branch list)
+- useLoading.ts (loading state hook)
+
+## CI/CD
+
+### GitHub Actions
+
+Automated workflows run on every push and PR:
+
+1. **CI Pipeline** (`.github/workflows/ci.yml`):
+   - Lint (ESLint)
+   - Type check (TypeScript)
+   - Test (Jest with coverage)
+   - Build (Xcode Release build)
+   - Coverage upload (Codecov)
+
+2. **Dependency Review** (`.github/workflows/dependency-review.yml`):
+   - Scans for vulnerable dependencies
+   - Blocks high/critical vulnerabilities
+
+### Pre-commit Hooks
+
+Husky + lint-staged automatically run on every commit:
+
+```bash
+# Install hooks (first time)
+just hooks-install
+
+# Hooks run automatically on git commit:
+# 1. ESLint --fix (auto-fixes staged .ts/.tsx files)
+# 2. Prettier --write (formats all staged files)
+# 3. TypeScript type checking (npx tsc --noEmit)
+# 4. Commit blocked if any step fails
+```
+
 Optional: view helper tasks
 
 ```sh
@@ -42,6 +117,7 @@ Common recipes:
 
 ```sh
 just install            # npm install
+just hooks-install      # install Husky pre-commit hooks
 just pods               # cd macos && pod install
 just start              # start Metro bundler
 just macos              # run the macOS app
