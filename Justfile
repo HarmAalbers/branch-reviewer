@@ -12,6 +12,12 @@ default:
 install:
     npm install
 
+# Install git hooks with Husky
+hooks-install:
+    npm install
+    npx husky init
+    chmod +x .husky/pre-commit
+
 # Start Metro bundler
 start:
     npm start

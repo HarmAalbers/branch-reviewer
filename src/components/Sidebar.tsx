@@ -1,23 +1,15 @@
 import React from 'react';
-import {
-  ScrollView,
-  Text,
-  View,
-  Pressable,
-  StyleSheet,
-} from 'react-native';
-import type {Repo} from '../types';
-import {useTheme} from '../hooks/useTheme';
+import { ScrollView, Text, View, Pressable, StyleSheet } from 'react-native';
+import type { Repo } from '../types';
+import { useTheme } from '../hooks/useTheme';
 
 export type SidebarProps = {
   repos: Repo[];
   selectedRepoId?: string;
-  selectedPrId?: string;
   selectedBranchName?: string;
   collapsed: Record<string, boolean>;
   onToggleRepo: (repoId: string) => void;
   onSelectRepo: (repoId: string) => void;
-  onSelectPr: (repoId: string, prId: string) => void;
   onSelectBranch: (repoId: string, branchName: string) => void;
   onAddRepo: () => void;
 };
@@ -25,16 +17,14 @@ export type SidebarProps = {
 export function Sidebar({
   repos,
   selectedRepoId,
-  selectedPrId,
   selectedBranchName,
   collapsed,
   onToggleRepo,
   onSelectRepo,
-  onSelectPr,
   onSelectBranch,
   onAddRepo,
 }: SidebarProps) {
-  const {colors} = useTheme();
+  const { colors } = useTheme();
 
   return (
     <View
@@ -116,8 +106,8 @@ export function Sidebar({
                                 backgroundColor: selected
                                   ? colors.selected
                                   : pressed
-                                  ? colors.rowPressed
-                                  : 'transparent',
+                                    ? colors.rowPressed
+                                    : 'transparent',
                               },
                             ]}
                           >
@@ -158,45 +148,6 @@ export function Sidebar({
                       })}
                     </View>
                   ) : null}
-
-                  {/* Pull requests list */}
-                  {repo.pullRequests.map(pr => {
-                    const selected =
-                      repo.id === selectedRepoId && pr.id === selectedPrId;
-                    return (
-                      <Pressable
-                        key={pr.id}
-                        onPress={() => {
-                          onSelectRepo(repo.id);
-                          onSelectPr(repo.id, pr.id);
-                        }}
-                        style={({ pressed }) => [
-                          styles.prRow,
-                          {
-                            backgroundColor: selected
-                              ? colors.selected
-                              : pressed
-                              ? colors.rowPressed
-                              : 'transparent',
-                          },
-                        ]}
-                      >
-                        <View style={styles.prDot} />
-                        <Text
-                          numberOfLines={1}
-                          style={[styles.prTitle, { color: colors.fg }]}
-                        >
-                          {pr.title}
-                        </Text>
-                        <Text
-                          style={[styles.prAuthor, { color: colors.muted }]}
-                        >
-                          {' '}
-                          · {pr.author}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
                 </>
               ) : null}
             </View>

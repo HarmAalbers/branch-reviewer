@@ -6,7 +6,6 @@ const KEY = 'branchReviewer.appState.v1';
 export type PersistedState = {
   repos: any; // We intentionally store as any (plain JSON) to avoid versioning pains
   selectedRepoId?: string;
-  selectedPrId?: string;
   selectedBranchName?: string;
   collapsed?: Record<string, boolean>;
 };

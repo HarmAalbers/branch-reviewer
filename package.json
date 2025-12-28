@@ -7,7 +7,8 @@
     "lint": "eslint .",
     "start": "react-native-macos start",
     "test": "jest",
-    "bundle:macos": "react-native-macos bundle --entry-file index.js --platform macos --dev false --bundle-output macos/main.jsbundle --assets-dest macos"
+    "bundle:macos": "react-native-macos bundle --entry-file index.js --platform macos --dev false --bundle-output macos/main.jsbundle --assets-dest macos",
+    "prepare": "husky"
   },
   "dependencies": {
     "react": "^19.2.3",
@@ -27,10 +28,21 @@
     "@types/react": "^19.2.7",
     "@types/react-test-renderer": "^19.1.0",
     "eslint": "^8.57.1",
+    "husky": "^9.1.7",
     "jest": "^30.2.0",
+    "lint-staged": "^15.2.10",
     "prettier": "^3.7.4",
     "react-test-renderer": "^19.2.3",
     "typescript": "^5.6.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,js}": [
+      "prettier --write"
+    ]
   },
   "engines": {
     "node": ">=20"
