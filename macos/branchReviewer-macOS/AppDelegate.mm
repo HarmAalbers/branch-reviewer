@@ -308,7 +308,6 @@ RCT_REMAP_METHOD(scanRepo,
     return fileURL;
   }
   // Fallback: allow connecting to a local Metro server if the release app is run locally without a bundle.
-  RCTBundleURLProviderAllowPackagerServerAccess(YES);
   return [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];
 #endif
 }
